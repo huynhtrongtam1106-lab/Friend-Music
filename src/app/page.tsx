@@ -39,15 +39,19 @@ export default function LoginPage() {
     <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
       <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-orange-500/5 p-8 space-y-6">
         
-        {/* Header tối giản chuyên nghiệp */}
-        <div className="text-center space-y-2.5">
-          <div className="w-14 h-14 bg-orange-50 text-[#f95514] rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-inner font-black">
-            🎸
+        {/* Khu vực hiển thị Logo thương hiệu CHÍNH THỨC */}
+        <div className="text-center space-y-3">
+          <div className="flex justify-center items-center h-20 px-4">
+            {/* Đảm bảo bạn đã đặt file logo.png vào thư mục public/logo.png */}
+            <img 
+              src="/logo.png" 
+              alt="Friend Music School" 
+              className="max-h-full w-auto object-contain block"
+            />
           </div>
-          <div>
-            <h1 className="text-lg font-black text-slate-900 tracking-tight">Friend Music School</h1>
-            <p className="text-xs text-slate-400 mt-0.5">Cổng đăng nhập Quản trị & Giáo viên</p>
-          </div>
+          {/* Đã ẩn dòng tiêu đề text vì logo đã có tên trường */}
+          {/* <h1 className="text-base font-black text-slate-900 tracking-tight">Friend Music School</h1> */}
+          <p className="text-xs text-slate-400 !mt-1">Cổng đăng nhập Quản trị & Giáo viên</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4 text-xs">
