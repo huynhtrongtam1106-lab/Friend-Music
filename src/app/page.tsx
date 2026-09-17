@@ -36,14 +36,23 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-800">
-      <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-200 shadow-xl p-8 space-y-6">
-        <div className="text-center space-y-1.5">
-          <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-black">
-            🎵
+    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
+      <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-orange-500/5 p-8 space-y-6">
+        
+        {/* Khu vực hiển thị Logo thương hiệu */}
+        <div className="text-center space-y-3">
+          <div className="flex justify-center">
+            {/* Đảm bảo bạn đã đặt file logo.png vào thư mục public/logo.png */}
+            <img 
+              src="/logo.png" 
+              alt="Friend Music School Logo" 
+              className="h-14 w-auto object-contain mx-auto"
+            />
           </div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">Friend Music Management</h1>
-          <p className="text-xs text-slate-400">Đăng nhập tài khoản Quản trị hoặc Giáo viên</p>
+          <div>
+            <h1 className="text-base font-black text-slate-900 tracking-tight">Friend Music School</h1>
+            <p className="text-xs text-slate-400 mt-0.5">Cổng đăng nhập Quản trị & Giáo viên</p>
+          </div>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4 text-xs">
@@ -55,22 +64,22 @@ export default function LoginPage() {
               placeholder="VD: example@gmail.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 border border-slate-200 rounded-2xl font-medium focus:ring-2 focus:ring-slate-900 focus:outline-none transition"
+              className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-medium focus:ring-2 focus:ring-[#f95514] focus:bg-white focus:outline-none transition"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-slate-900 hover:bg-black text-white font-bold rounded-2xl transition disabled:opacity-50 shadow-sm"
+            className="w-full py-3.5 bg-[#f95514] hover:bg-[#e04b10] text-white font-bold rounded-2xl transition disabled:opacity-50 shadow-md shadow-orange-500/20 cursor-pointer"
           >
             {loading ? 'Đang xác thực...' : 'Đăng Nhập Hệ Thống →'}
           </button>
         </form>
 
         <div className="pt-2 border-t border-slate-100 text-center">
-          <p className="text-[11px] text-slate-400">
-            Dành riêng cho Trung Tâm Âm Nhạc Friend Music
+          <p className="text-[11px] text-slate-400 font-medium">
+            Phần mềm quản lý chuyên dụng cho Trung Tâm
           </p>
         </div>
       </div>
