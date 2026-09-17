@@ -1,0 +1,181 @@
+// STREAMING_CHUNK:Configuring generator and datasource
+// Cấu hình Prisma Client và kết nối cơ sở dữ liệu PostgreSQL
+generator client {
+provider = "prisma-client-js"
+}
+
+datasource db {
+provider  = "postgresql"
+url       = env("DATABASE_URL")
+directUrl = env("DIRECT_URL")
+}
+
+// STREAMING_CHUNK:Defining system enums
+// 1. CÁC KIỂU DỮ LIỆU ĐỊNH DANH (ENUMS)
+enum Role {
+ADMIN
+TEACHER
+PARENT
+}
+
+enum StudentStatus {
+ACTIVE
+PAUSED
+DROPPED
+}
+
+enum PaymentStatus {
+PAID
+UNPAID
+}
+
+enum AttendanceStatus {
+ATTENDED         // Có mặt
+ABSENT_EXCUSED   // Vắng có phép
+ABSENT_UNEXCUSED // Vắng không phép
+}
+
+// STREAMING_CHUNK:Defining User and Teacher models
+// 2. NGƯỜI DÙNG & PHÂN QUYỀN HỆ THỐNG
+model User {
+id           String    @id @default(uuid())
+email        String    @unique
+passwordHash String?   @map("password_hash")
+role         Role      @default(TEACHER)
+name         String
+phone        String?   @unique
+avatarUrl    String?   @map("avatar_url")
+createdAt    DateTime  @default(now()) @map("created_at")
+updatedAt    DateTime  @updatedAt @map("updated_at")
+
+teacher      Teacher?
+
+@@map("users")
+}
+
+model Teacher {
+id              String        @id @default(uuid())
+userId          String        @unique @map("user_id")
+user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+specializations String[]      // Ví dụ: ["Piano", "Guitar", "Drum", "Thanh Nhạc"]
+createdAt       DateTime      @default(now()) @map("created_at")
+updatedAt       DateTime      @updatedAt @map("updated_at")
+
+enrollments     Enrollment[]
+attendances     Attendance[]
+
+@@map("teachers")
+}
+
+// STREAMING_CHUNK:Defining PricingPlan model
+// 3. BẢNG GIÁ & CÁC GÓI KHÓA HỌC
+model PricingPlan {
+id               String       @id @default(uuid())
+subject          String       // "Piano", "Guitar", "Drum", "Thanh Nhạc"
+packageName      String       @map("package_name") // "Lớp cá nhân 4 buổi", "Lớp cá nhân 8 buổi"
+numberOfSessions Int          @map("number_of_sessions")
+price            Decimal      @db.Decimal(12, 2)
+isActive         Boolean      @default(true) @map("is_active")
+createdAt        DateTime     @default(now()) @map("created_at")
+updatedAt        DateTime     @updatedAt @map("updated_at")
+
+enrollments      Enrollment[]
+
+@@unique([subject, packageName])
+@@map("pricing_plans")
+}
+
+// STREAMING_CHUNK:Defining Student and Enrollment models
+// 4. HỌC VIÊN & ĐĂNG KÝ GÓI HỌC (ENROLLMENT)
+model Student {
+id          String        @id @default(uuid())
+studentCode String        @unique @map("student_code") // P01, G01, D01, T01...
+fullName    String        @map("full_name")
+phone       String?
+parentPhone String?       @map("parent_phone")
+parentEmail String?       @map("parent_email")
+startDate   DateTime      @default(now()) @map("start_date")
+status      StudentStatus @default(ACTIVE)
+note        String?       @db.Text
+accessToken String        @unique @default(uuid()) @map("access_token") // Bí mật dành cho Sổ liên lạc Magic Link
+deletedAt   DateTime?     @map("deleted_at") // Soft Delete an toàn lịch sử
+createdAt   DateTime      @default(now()) @map("created_at")
+updatedAt   DateTime      @updatedAt @map("updated_at")
+
+enrollments Enrollment[]
+attendances Attendance[]
+sessionLogs SessionLog[]
+
+@@index([studentCode])
+@@index([accessToken])
+@@index([status, deletedAt])
+@@map("students")
+}
+
+model Enrollment {
+id                String        @id @default(uuid())
+studentId         String        @map("student_id")
+teacherId         String        @map("teacher_id")
+pricingPlanId     String        @map("pricing_plan_id")
+totalSessions     Int           @map("total_sessions")
+attendedSessions  Int           @default(0) @map("attended_sessions")
+remainingSessions Int           @map("remaining_sessions")
+tuitionFee        Decimal       @map("tuition_fee") @db.Decimal(12, 2)
+paymentStatus     PaymentStatus @default(UNPAID) @map("payment_status")
+startDate         DateTime      @default(now()) @map("start_date")
+renewalDate       DateTime?     @map("renewal_date")
+createdAt         DateTime      @default(now()) @map("created_at")
+updatedAt         DateTime      @updatedAt @map("updated_at")
+
+student           Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+teacher           Teacher       @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+pricingPlan       PricingPlan   @relation(fields: [pricingPlanId], references: [id], onDelete: Restrict)
+attendances       Attendance[]
+
+@@index([studentId])
+@@index([teacherId])
+@@index([remainingSessions])
+@@map("enrollments")
+}
+
+// STREAMING_CHUNK:Defining Attendance and SessionLog models
+// 5. ĐIỂM DANH & SỔ LIÊN LẠC ĐIỆN TỬ
+model Attendance {
+id           String           @id @default(uuid())
+date         DateTime         @db.Date
+enrollmentId String           @map("enrollment_id")
+studentId    String           @map("student_id")
+teacherId    String           @map("teacher_id")
+status       AttendanceStatus @default(ATTENDED)
+createdAt    DateTime         @default(now()) @map("created_at")
+
+enrollment   Enrollment       @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+student      Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+teacher      Teacher          @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+sessionLog   SessionLog?
+
+@@unique([enrollmentId, date])
+@@index([studentId, date])
+@@index([teacherId, date])
+@@map("attendances")
+}
+
+model SessionLog {
+id                String      @id @default(uuid())
+attendanceId      String      @unique @map("attendance_id")
+studentId         String      @map("student_id")
+lessonDate        DateTime    @map("lesson_date") @db.Date
+assignment        String?     @db.Text
+exerciseDuration  String?     @map("exercise_duration") // Ví dụ: "30 phút/ngày"
+dueDate           DateTime?   @map("due_date") @db.Date
+teacherEvaluation String?     @map("teacher_evaluation") @db.Text
+teacherNote       String?     @map("teacher_note") @db.Text
+createdAt         DateTime    @default(now()) @map("created_at")
+updatedAt         DateTime    @updatedAt @map("updated_at")
+
+attendance        Attendance  @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+student           Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+@@index([studentId, lessonDate])
+@@map("session_logs")
+}
