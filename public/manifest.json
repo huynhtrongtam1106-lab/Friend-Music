@@ -1,18 +1,19 @@
 {
-  "name": "Friend Music School",
+  "name": "Friend Music Management",
   "short_name": "Friend Music",
+  "description": "Hệ thống quản lý trung tâm âm nhạc và sổ liên lạc điện tử",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#f95514",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
   "icons": [
     {
-      "src": "/logo.png",
+      "src": "/icon.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/logo.png",
+      "src": "/icon.png",
       "sizes": "512x512",
       "type": "image/png"
     }
