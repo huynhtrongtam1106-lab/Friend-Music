@@ -1,18 +1,45 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [role, setRole] = useState<'ADMIN' | 'TEACHER'>('ADMIN');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (role === 'ADMIN') {
-      window.location.href = '/';
-    } else {
-      window.location.href = '/teacher/attendance';
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      // Gọi API xác thực đăng nhập
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password, role }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+      }
+
+      // Điều hướng dựa theo vai trò sau khi đăng nhập thành công
+      if (data.role === 'ADMIN') {
+        router.push('/');
+      } else {
+        router.push('/teacher/attendance');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -45,6 +72,12 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4 text-sm">
+          {errorMsg && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-600 font-bold text-center">
+              {errorMsg}
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Email</label>
             <input
@@ -71,9 +104,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md shadow-indigo-100 transition text-sm"
+            disabled={loading}
+            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md shadow-indigo-100 transition text-sm disabled:opacity-50 cursor-pointer"
           >
-            Đăng nhập vào hệ thống
+            {loading ? 'Đang xác thực...' : 'Đăng nhập vào hệ thống'}
           </button>
         </form>
 
