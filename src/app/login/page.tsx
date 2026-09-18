@@ -46,11 +46,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-800">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-8 space-y-6">
-        <div className="text-center space-y-1">
-          <div className="w-12 h-12 bg-indigo-600 text-white font-black text-2xl rounded-2xl mx-auto flex items-center justify-center shadow-md shadow-indigo-100">
-            ♪
+        <div className="text-center space-y-2">
+          <div className="w-48 h-16 mx-auto flex items-center justify-center">
+            <img src="/logo.png" alt="Friend Music School Logo" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight pt-2">Friend Music Center</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight pt-1">Friend Music Center</h1>
           <p className="text-xs text-slate-500">Đăng nhập cổng điều hành học viện</p>
         </div>
 

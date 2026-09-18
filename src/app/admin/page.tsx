@@ -6,6 +6,7 @@ import ActionMenu from '@/components/action-menu';
 import { DeleteStudentButton, DeleteTeacherButton } from '@/components/delete-action-buttons';
 import EditTeacherDialog from '@/components/edit-teacher-dialog';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,14 +42,16 @@ export default async function AdminDashboardPage() {
   return (
     <main className="min-h-screen bg-slate-50 p-6 font-sans text-slate-800">
       <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header Admin - Phóng to logo cực đại */}
+        {/* Header Admin - Đã điều chỉnh tỷ lệ logo ngang chuẩn */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-5">
-            <div className="w-64 h-24 relative flex-shrink-0 flex items-center justify-center overflow-hidden">
-              <img 
+          <div className="flex items-center gap-3.5">
+            <div className="w-28 h-10 relative flex-shrink-0 flex items-center justify-center">
+              <Image 
                 src="/logo.png" 
                 alt="Friend Music School Logo" 
-                className="w-full h-full object-contain scale-[2.2]"
+                width={120} 
+                height={40} 
+                className="object-contain"
               />
             </div>
             <div>
