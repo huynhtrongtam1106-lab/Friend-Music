@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -26,7 +25,6 @@ export default function LoginPage() {
         throw new Error(data.error || 'Đăng nhập thất bại.');
       }
 
-      // Ép trình duyệt chuyển hướng cứng bằng lệnh replace để bỏ qua cache client-side
       const targetUrl = data.redirectTo || (data.role === 'TEACHER' ? '/teacher/attendance' : '/admin/dashboard');
       window.location.replace(targetUrl);
 
@@ -37,17 +35,15 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
+    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8 space-y-6">
         <div className="text-center space-y-2 flex flex-col items-center">
-          {/* Khung chứa logo đã được tăng kích thước lớn */}
-          <div className="w-full h-40 relative mb-2">
-            <Image
+          {/* Thay thế bằng thẻ img thông thường để hiển thị chuẩn xác tuyệt đối trên Vercel */}
+          <div className="w-56 h-20 relative mb-2 flex items-center justify-center overflow-hidden">
+            <img
               src="/logo.png"
               alt="Friend Music School Logo"
-              fill
-              className="object-contain"
-              priority
+              className="w-full h-full object-contain scale-125"
             />
           </div>
           <h1 className="text-xl font-black text-slate-900 tracking-tight pt-1">FRIEND MUSIC</h1>
@@ -86,6 +82,6 @@ export default function LoginPage() {
           Phần mềm quản lý chuyên dụng cho Trung Tâm
         </p>
       </div>
-    </div>
+    </main>
   );
 }
