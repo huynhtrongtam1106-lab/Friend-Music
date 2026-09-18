@@ -38,11 +38,10 @@ export default function LoginPage() {
     <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8 space-y-6">
         <div className="text-center space-y-2 flex flex-col items-center">
-          {/* Thay thế bằng thẻ img thông thường để hiển thị chuẩn xác tuyệt đối trên Vercel */}
-          <div className="w-56 h-20 relative mb-2 flex items-center justify-center overflow-hidden">
+          <div className="w-64 h-24 relative mb-2 flex items-center justify-center overflow-hidden">
             <img
               src="/logo.png"
-              alt="Friend Music School Logo"
+              alt="Logo"
               className="w-full h-full object-contain scale-125"
             />
           </div>
