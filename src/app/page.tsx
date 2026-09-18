@@ -38,12 +38,9 @@ export default function LoginPage() {
     <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8 space-y-6">
         <div className="text-center space-y-2 flex flex-col items-center">
-          <div className="w-64 h-24 relative mb-2 flex items-center justify-center overflow-hidden">
-            <img
-              src="/logo.png"
-              alt="Logo"
-              className="w-full h-full object-contain scale-125"
-            />
+          {/* Logo icon note nhạc */}
+          <div className="w-14 h-14 bg-orange-600 text-white text-2xl rounded-2xl mx-auto flex items-center justify-center shadow-md shadow-orange-100 mb-2">
+            🎵
           </div>
           <h1 className="text-xl font-black text-slate-900 tracking-tight pt-1">FRIEND MUSIC</h1>
           <p className="text-xs text-slate-400">Cổng đăng nhập Quản trị & Giáo viên</p>

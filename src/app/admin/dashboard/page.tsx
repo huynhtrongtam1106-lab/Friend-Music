@@ -41,15 +41,11 @@ export default async function AdminDashboardPage() {
   return (
     <main className="min-h-screen bg-slate-50 p-6 font-sans text-slate-800">
       <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header Admin - Phóng to logo cực đại */}
+        {/* Header Admin */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-5">
-            <div className="w-64 h-24 relative flex-shrink-0 flex items-center justify-center overflow-hidden">
-              <img 
-                src="/logo.png" 
-                alt="Friend Music School Logo" 
-                className="w-full h-full object-contain scale-[2.2]"
-              />
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-orange-600 text-white text-xl rounded-2xl flex-shrink-0 flex items-center justify-center shadow-md shadow-orange-100">
+              🎵
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -209,7 +205,7 @@ export default async function AdminDashboardPage() {
                       </td>
                       <td className="py-3 text-center">
                         <Link
-                          href={`/p/${item.student.accessToken}`}
+                      href={`/p/${item.student.accessToken}`}
                           target="_blank"
                           className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg transition"
                         >
