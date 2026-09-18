@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -25,6 +26,7 @@ export default function LoginPage() {
         throw new Error(data.error || 'Đăng nhập thất bại.');
       }
 
+      // Ép trình duyệt chuyển hướng cứng bằng lệnh replace để bỏ qua cache client-side
       const targetUrl = data.redirectTo || (data.role === 'TEACHER' ? '/teacher/attendance' : '/admin/dashboard');
       window.location.replace(targetUrl);
 
@@ -35,12 +37,18 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8 space-y-6">
         <div className="text-center space-y-2 flex flex-col items-center">
-          {/* Logo icon note nhạc */}
-          <div className="w-14 h-14 bg-orange-600 text-white text-2xl rounded-2xl mx-auto flex items-center justify-center shadow-md shadow-orange-100 mb-2">
-            🎵
+          {/* Khung chứa logo đã được tăng kích thước lớn */}
+          <div className="w-full h-40 relative mb-2">
+            <Image
+              src="/logo.png"
+              alt="Friend Music School Logo"
+              fill
+              className="object-contain"
+              priority
+            />
           </div>
           <h1 className="text-xl font-black text-slate-900 tracking-tight pt-1">FRIEND MUSIC</h1>
           <p className="text-xs text-slate-400">Cổng đăng nhập Quản trị & Giáo viên</p>
@@ -78,6 +86,6 @@ export default function LoginPage() {
           Phần mềm quản lý chuyên dụng cho Trung Tâm
         </p>
       </div>
-    </main>
+    </div>
   );
 }
