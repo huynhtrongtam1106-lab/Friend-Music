@@ -113,7 +113,6 @@ sessionLogs SessionLog[]
 }
 
 model Enrollment {
-  isPaid Boolean @default(false)
 id                String        @id @default(uuid())
 studentId         String        @map("student_id")
 teacherId         String        @map("teacher_id")

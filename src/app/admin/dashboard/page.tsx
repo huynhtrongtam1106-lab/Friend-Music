@@ -17,7 +17,7 @@ export default async function AdminDashboardPage() {
     redirect('/');
   }
 
-  const [rawPlans, teachers, rawEnrollments] = await Promise.all([
+  const [rawPlans, teachers, enrollments] = await Promise.all([
     prisma.pricingPlan.findMany({ orderBy: [{ subject: 'asc' }, { numberOfSessions: 'asc' }] }),
     prisma.teacher.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
     prisma.enrollment.findMany({
@@ -36,20 +36,12 @@ export default async function AdminDashboardPage() {
     price: Number(p.price),
   }));
 
-  const enrollments = rawEnrollments.map((item) => ({
-    ...item,
-    tuitionFee: Number(item.tuitionFee),
-    pricingPlan: {
-      ...item.pricingPlan,
-      price: Number(item.pricingPlan.price),
-    },
-  }));
-
   const dueRenewalCount = enrollments.filter((e) => e.remainingSessions <= 1).length;
 
   return (
     <main className="min-h-screen bg-slate-50 p-6 font-sans text-slate-800">
       <div className="max-w-5xl mx-auto space-y-6">
+        {/* Header Admin - Phóng to logo cực đại */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-5">
             <div className="w-64 h-24 relative flex-shrink-0 flex items-center justify-center overflow-hidden">
@@ -69,7 +61,7 @@ export default async function AdminDashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <AddStudentModal plans={plans} teachers={teachers} />
-            <ActionMenu enrollments={enrollments} />
+            <ActionMenu />
             <a
               href="/api/auth/logout"
               className="px-3 py-2 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl border border-rose-200 transition"
@@ -79,6 +71,7 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* KPI Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
             <p className="text-xs font-semibold text-slate-500">Học viên đang học</p>
@@ -98,6 +91,7 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* Danh Sách Giáo Viên */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-3">
           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
             <div>
@@ -160,6 +154,7 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* Danh Sách Học Viên */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-4">
           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
             <div>
