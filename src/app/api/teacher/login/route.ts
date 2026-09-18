@@ -4,36 +4,47 @@ import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
   try {
-    const { teacherId } = await req.json();
+    const body = await req.json();
+    const email = body.email?.trim().toLowerCase();
 
-    if (!teacherId) {
-      return NextResponse.json({ error: 'Thiếu ID giáo viên' }, { status: 400 });
+    if (!email) {
+      return NextResponse.json({ error: 'Vui lòng nhập email.' }, { status: 400 });
     }
 
-    const teacher = await prisma.teacher.findUnique({
-      where: { id: teacherId },
-      include: { user: true },
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { teacher: true }
     });
 
-    if (!teacher) {
-      return NextResponse.json({ error: 'Không tìm thấy giáo viên' }, { status: 404 });
+    if (!user) {
+      return NextResponse.json({ error: 'Email giáo viên không tồn tại trong hệ thống!' }, { status: 400 });
     }
 
-    // Thiết lập cookie định danh giáo viên (thời hạn 30 ngày)
+    let teacherId = user.teacher?.id;
+    if (user.role === 'TEACHER' && !teacherId) {
+      const newTeacher = await prisma.teacher.create({
+        data: { userId: user.id, specializations: ['Guitar'] }
+      });
+      teacherId = newTeacher.id;
+    }
+
     const cookieStore = await cookies();
-    cookieStore.set('friend_teacher_id', teacher.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
+    const maxAge = 604800; // 7 ngày
+
+    // Lưu ĐÚNG tên cookie mà trang attendance đang quét
+    if (teacherId) {
+      cookieStore.set('friend_teacher_id', teacherId, { path: '/', maxAge });
+    }
+    cookieStore.set('friend_user_role', user.role || 'TEACHER', { path: '/', maxAge });
+    cookieStore.set('auth_session', 'true', { path: '/', maxAge });
+
+    return NextResponse.json({ 
+      success: true, 
+      teacherId,
+      redirectTo: '/teacher/attendance'
     });
 
-    return NextResponse.json({
-      success: true,
-      teacherName: teacher.user.name,
-    });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Lỗi server: ' + error.message }, { status: 500 });
   }
 }

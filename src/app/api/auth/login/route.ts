@@ -2,100 +2,47 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 
-const ADMIN_EMAIL = 'huynhtrongtam1106@gmail.com';
-
 export async function POST(req: Request) {
   try {
-    const { email } = await req.json();
+    const body = await req.json();
+    const email = body.email?.trim().toLowerCase();
 
-    if (!email || !email.trim()) {
-      return NextResponse.json({ error: 'Vui lòng nhập địa chỉ email.' }, { status: 400 });
+    if (!email) {
+      return NextResponse.json({ error: 'Vui lòng nhập email.' }, { status: 400 });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    const cookieStore = await cookies();
-
-    // 1. Kiểm tra nếu là Chủ sở hữu (Admin)
-    if (cleanEmail === ADMIN_EMAIL) {
-      let adminUser = await prisma.user.findUnique({
-        where: { email: cleanEmail },
-      });
-
-      // Tự động khởi tạo tài khoản Admin trong DB nếu chưa có
-      if (!adminUser) {
-        adminUser = await prisma.user.create({
-          data: {
-            email: cleanEmail,
-            name: 'Chủ Trung Tâm (Admin)',
-            role: 'ADMIN',
-          },
-        });
-      }
-
-      cookieStore.set('friend_user_role', 'ADMIN', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30,
-        path: '/',
-      });
-      cookieStore.set('friend_user_email', cleanEmail, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30,
-        path: '/',
-      });
-      cookieStore.delete('friend_teacher_id');
-
-      return NextResponse.json({
-        success: true,
-        role: 'ADMIN',
-        redirectTo: '/admin/dashboard',
-      });
-    }
-
-    // 2. Kiểm tra nếu là Giáo viên
-    const teacherUser = await prisma.user.findUnique({
-      where: { email: cleanEmail },
-      include: { teacher: true },
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { teacher: true }
     });
 
-    if (teacherUser && teacherUser.teacher) {
-      cookieStore.set('friend_user_role', 'TEACHER', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30,
-        path: '/',
-      });
-      cookieStore.set('friend_teacher_id', teacherUser.teacher.id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30,
-        path: '/',
-      });
-      cookieStore.set('friend_user_email', cleanEmail, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30,
-        path: '/',
-      });
-
-      return NextResponse.json({
-        success: true,
-        role: 'TEACHER',
-        redirectTo: '/teacher/attendance',
-      });
+    if (!user) {
+      return NextResponse.json({ error: 'Email này không tồn tại trong hệ thống!' }, { status: 400 });
     }
 
-    return NextResponse.json(
-      { error: 'Email chưa được đăng ký trong hệ thống Friend Music!' },
-      { status: 401 }
-    );
+    let teacherId = user.teacher?.id;
+    if (user.role === 'TEACHER' && !teacherId) {
+      const newTeacher = await prisma.teacher.create({
+        data: { userId: user.id, specializations: ['Guitar'] }
+      });
+      teacherId = newTeacher.id;
+    }
+
+    const cookieStore = await cookies();
+    
+    // Đổi tên cookie thành 'friend_user_role' để khớp 100% với file page.tsx của Admin
+    cookieStore.set('friend_user_role', user.role || 'ADMIN', { path: '/', maxAge: 604800 });
+    cookieStore.set('auth_session', 'true', { path: '/', maxAge: 604800 });
+    cookieStore.set('userId', user.id, { path: '/', maxAge: 604800 });
+    if (teacherId) {
+      cookieStore.set('teacherId', teacherId, { path: '/', maxAge: 604800 });
+    }
+
+    const redirectTo = user.role === 'TEACHER' ? '/teacher/attendance' : '/admin/dashboard';
+
+    return NextResponse.json({ success: true, redirectTo });
+
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Lỗi server' }, { status: 500 });
+    return NextResponse.json({ error: 'Lỗi server: ' + error.message }, { status: 500 });
   }
 }
