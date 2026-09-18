@@ -1,123 +1,112 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { AttendanceStatus } from '@prisma/client';
 
 export async function POST(req: Request) {
   try {
-    const { enrollmentId, teacherId, date, status, assignment, exerciseDuration, dueDate, teacherEvaluation, teacherNote } = await req.json();
+    const body = await req.json();
+    const { enrollmentId, status, assignment, evaluation, dueDate, grade, note } = body;
 
-    const lessonDate = new Date(date || new Date().toISOString().split('T')[0]);
+    if (!enrollmentId) {
+      return NextResponse.json({ error: 'Thiếu thông tin đăng ký lớp học' }, { status: 400 });
+    }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const enrollment = await tx.enrollment.findUnique({
-        where: { id: enrollmentId },
-        include: { student: true }
-      });
+    const enrollment = await prisma.enrollment.findUnique({
+      where: { id: enrollmentId },
+    });
 
-      if (!enrollment) throw new Error('Không tìm thấy thông tin đăng ký gói học.');
+    if (!enrollment) {
+      return NextResponse.json({ error: 'Không tìm thấy thông tin học viên' }, { status: 404 });
+    }
 
-      // 1. Kiểm tra xem đã có bản ghi điểm danh trong ngày này chưa
-      const existingAttendance = await tx.attendance.findUnique({
-        where: {
-          enrollmentId_date: {
-            enrollmentId: enrollment.id,
-            date: lessonDate,
-          },
+    let newRemaining = enrollment.remainingSessions;
+    let newAttended = enrollment.attendedSessions;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const existingAttendance = await prisma.attendance.findUnique({
+      where: {
+        enrollmentId_date: {
+          enrollmentId,
+          date: today,
         },
-        include: { sessionLog: true }
-      });
+      },
+    });
 
-      let attendance;
-      let updatedEnrollment;
-
-      if (existingAttendance) {
-        // --- TRƯỜNG HỢP ĐÃ ĐIỂM DANH TRONG NGÀY: Cập nhật lại (Upsert logic) ---
-        attendance = await tx.attendance.update({
-          where: { id: existingAttendance.id },
-          data: { status: status as AttendanceStatus },
-        });
-
-        // Cập nhật lại nội dung sổ liên lạc/nhật ký buổi học nếu đã tồn tại
-        if (existingAttendance.sessionLog) {
-          await tx.sessionLog.update({
-            where: { id: existingAttendance.sessionLog.id },
-            data: {
-              assignment,
-              exerciseDuration,
-              dueDate: dueDate ? new Date(dueDate) : null,
-              teacherEvaluation,
-              teacherNote,
-            },
-          });
-        } else {
-          await tx.sessionLog.create({
-            data: {
-              attendanceId: attendance.id,
-              studentId: enrollment.studentId,
-              lessonDate,
-              assignment,
-              exerciseDuration,
-              dueDate: dueDate ? new Date(dueDate) : null,
-              teacherEvaluation,
-              teacherNote,
-            },
-          });
-        }
-
-        // Không trừ thêm buổi vì buổi học trong ngày này đã được tính trước đó
-        updatedEnrollment = enrollment;
-
-      } else {
-        // --- TRƯỜNG HỢP CHƯA ĐIỂM DANH TRONG NGÀY: Tạo mới và trừ buổi ---
+    if (status === 'ATTENDED') {
+      if (!existingAttendance) {
         if (enrollment.remainingSessions <= 0) {
-          throw new Error(`Học viên ${enrollment.student.fullName} đã hết số buổi của gói.`);
+          return NextResponse.json({ error: 'Học viên đã hết số buổi trong gói học!' }, { status: 400 });
         }
+        newRemaining -= 1;
+        newAttended += 1;
 
-        attendance = await tx.attendance.create({
+        await prisma.enrollment.update({
+          where: { id: enrollmentId },
           data: {
-            date: lessonDate,
-            enrollmentId: enrollment.id,
-            studentId: enrollment.studentId,
-            teacherId,
-            status: status as AttendanceStatus,
-          },
-        });
-
-        await tx.sessionLog.create({
-          data: {
-            attendanceId: attendance.id,
-            studentId: enrollment.studentId,
-            lessonDate,
-            assignment,
-            exerciseDuration,
-            dueDate: dueDate ? new Date(dueDate) : null,
-            teacherEvaluation,
-            teacherNote,
-          },
-        });
-
-        const shouldDeduct = status === 'ATTENDED' || status === 'ABSENT_UNEXCUSED';
-
-        updatedEnrollment = await tx.enrollment.update({
-          where: { id: enrollment.id },
-          data: {
-            attendedSessions: shouldDeduct ? { increment: 1 } : undefined,
-            remainingSessions: shouldDeduct ? { decrement: 1 } : undefined,
+            remainingSessions: newRemaining,
+            attendedSessions: newAttended,
           },
         });
       }
+    }
 
-      return { attendance, updatedEnrollment };
+    const attendanceRecord = await prisma.attendance.upsert({
+      where: {
+        enrollmentId_date: {
+          enrollmentId,
+          date: today,
+        },
+      },
+      update: {
+        status: status === 'ATTENDED' ? 'ATTENDED' : 'ABSENT_EXCUSED',
+      },
+      create: {
+        status: status === 'ATTENDED' ? 'ATTENDED' : 'ABSENT_EXCUSED',
+        date: today,
+        enrollment: { connect: { id: enrollmentId } },
+        student: { connect: { id: enrollment.studentId } },
+        teacher: { connect: { id: enrollment.teacherId } },
+      },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Đã lưu điểm danh và nhật ký thành công.',
-      remaining: result.updatedEnrollment.remainingSessions,
-      needsRenewal: result.updatedEnrollment.remainingSessions <= 1,
+    let assignmentStatus = 'Đang làm';
+    if (dueDate) {
+      const now = new Date();
+      const due = new Date(dueDate);
+      if (now > due) {
+        assignmentStatus = 'Trễ hạn';
+      }
+    }
+
+    await prisma.sessionLog.upsert({
+      where: {
+        attendanceId: attendanceRecord.id,
+      },
+      update: {
+        assignment: assignment || null,
+        teacherEvaluation: evaluation || null,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        status: assignmentStatus,
+        grade: grade || 'Chưa kiểm tra',
+        note: note || null,
+      },
+      create: {
+        studentId: enrollment.studentId,
+        attendanceId: attendanceRecord.id,
+        lessonDate: new Date(),
+        assignment: assignment || null,
+        teacherEvaluation: evaluation || null,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        status: assignmentStatus,
+        grade: grade || 'Chưa kiểm tra',
+        note: note || null,
+      },
     });
 
+    return NextResponse.json({ success: true, remaining: newRemaining });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Lỗi khi điểm danh.' }, { status: 400 });
+    console.error('Attendance API Error:', error);
+    return NextResponse.json({ error: error.message || 'Lỗi server' }, { status: 500 });
   }
 }

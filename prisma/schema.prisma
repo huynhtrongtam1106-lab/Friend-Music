@@ -161,21 +161,24 @@ sessionLog   SessionLog?
 }
 
 model SessionLog {
-id                String      @id @default(uuid())
-attendanceId      String      @unique @map("attendance_id")
-studentId         String      @map("student_id")
-lessonDate        DateTime    @map("lesson_date") @db.Date
-assignment        String?     @db.Text
-exerciseDuration  String?     @map("exercise_duration") // Ví dụ: "30 phút/ngày"
-dueDate           DateTime?   @map("due_date") @db.Date
-teacherEvaluation String?     @map("teacher_evaluation") @db.Text
-teacherNote       String?     @map("teacher_note") @db.Text
-createdAt         DateTime    @default(now()) @map("created_at")
-updatedAt         DateTime    @updatedAt @map("updated_at")
+  id                String       @id @default(uuid())
+  studentId         String       @map("student_id")
+  student           Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  attendanceId      String       @unique @map("attendance_id")
+  attendance        Attendance   @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  lessonDate        DateTime     @default(now()) @map("lesson_date")
+  assignment        String?      @db.Text
+  teacherEvaluation String?      @map("teacher_evaluation") @db.Text
+  
+  // --- DÁN CÁC TRƯỜNG NÀY VÀO ĐÂY ---
+  dueDate           DateTime?    @map("due_date")
+  status            String       @default("Đang làm")
+  grade             String?      @map("grade")
+  note              String?      @db.Text
+  // ------------------------------------
 
-attendance        Attendance  @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
-student           Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
 
-@@index([studentId, lessonDate])
-@@map("session_logs")
+  @@map("session_logs")
 }
