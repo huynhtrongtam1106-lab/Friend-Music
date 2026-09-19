@@ -1,41 +1,67 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import AttendanceClient from '@/components/teacher/attendance-client';
-import LogoutButton from '@/components/teacher/logout-button';
+import AttendanceClient from './attendance-client';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TeacherAttendancePage() {
+export default async function TeacherAttendancePage(props: {
+  searchParams: Promise<{ tid?: string }>;
+}) {
+  const searchParams = await props.searchParams;
   const cookieStore = await cookies();
-  const currentTeacherId = cookieStore.get('friend_teacher_id')?.value;
+  const role = cookieStore.get('friend_user_role')?.value;
+  const cookieTeacherId = cookieStore.get('friend_teacher_id')?.value;
+  const targetTeacherId = searchParams?.tid;
 
-  // Chưa đăng nhập bằng email -> Chuyển về màn hình đăng nhập
-  if (!currentTeacherId) {
-    redirect('/teacher/login');
+  let teacherId = targetTeacherId;
+  if (role === 'ADMIN') {
+    if (!teacherId && cookieTeacherId) {
+      teacherId = cookieTeacherId;
+    }
+  } else if (role === 'TEACHER') {
+    teacherId = cookieTeacherId;
+  } else {
+    redirect('/');
+  }
+
+  if (!teacherId) {
+    redirect('/');
   }
 
   const teacher = await prisma.teacher.findUnique({
-    where: { id: currentTeacherId },
+    where: { id: teacherId },
     include: { user: true },
   });
 
   if (!teacher) {
-    redirect('/teacher/login');
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-800 font-sans">
+        <div className="text-center space-y-2">
+          <h1 className="text-lg font-bold text-rose-600">Không tìm thấy giáo viên trong hệ thống</h1>
+          <p className="text-xs text-slate-500">Vui lòng kiểm tra lại đường dẫn hoặc liên hệ Quản trị viên.</p>
+        </div>
+      </div>
+    );
   }
 
-  // CHỈ LẤY ĐÚNG HỌC VIÊN ĐƯỢC PHÂN CÔNG CHO GIÁO VIÊN ĐÃ ĐĂNG NHẬP
   const rawEnrollments = await prisma.enrollment.findMany({
     where: {
-      teacherId: currentTeacherId,
+      teacherId: teacher.id,
       student: { status: 'ACTIVE', deletedAt: null },
     },
     include: {
-      student: true,
+      student: {
+        include: {
+          sessionLogs: {
+            orderBy: { lessonDate: 'desc' },
+            take: 10,
+          },
+        },
+      },
       pricingPlan: true,
-      teacher: { include: { user: true } },
     },
-    orderBy: { remainingSessions: 'asc' },
+    orderBy: { createdAt: 'desc' },
   });
 
   const enrollments = rawEnrollments.map((item) => ({
@@ -45,33 +71,13 @@ export default async function TeacherAttendancePage() {
       ...item.pricingPlan,
       price: Number(item.pricingPlan.price),
     },
-    startDate: item.startDate ? item.startDate.toISOString() : null,
-    renewalDate: item.renewalDate ? item.renewalDate.toISOString() : null,
   }));
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 font-sans text-slate-800">
-      <div className="max-w-md mx-auto space-y-4">
-        {/* Navigation Bar: Chỉ có nút Đăng Xuất */}
-        <div className="flex justify-between items-center px-1">
-          <span className="text-xs font-bold text-slate-400">Friend Music • Cổng Giáo Viên</span>
-          <LogoutButton />
-        </div>
-
-        {/* Thông tin Giáo Viên đang đăng nhập */}
-        <header className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <h1 className="text-base font-black text-slate-900">{teacher.user.name}</h1>
-          </div>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Email: {teacher.user.email} • Môn: {teacher.specializations.join(', ')}
-          </p>
-        </header>
-
-        {/* Chỉ hiển thị học viên của chính giáo viên này */}
-        <AttendanceClient initialEnrollments={enrollments} />
-      </div>
-    </main>
+    <AttendanceClient 
+      teacher={teacher} 
+      initialEnrollments={enrollments} 
+      isAdmin={role === 'ADMIN'} 
+    />
   );
 }

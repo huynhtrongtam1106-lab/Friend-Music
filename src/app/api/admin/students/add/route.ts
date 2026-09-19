@@ -12,17 +12,21 @@ export async function POST(req: Request) {
 
     const code = studentCode.trim().toUpperCase();
 
+    // 1. Kiểm tra gói học tồn tại
     const plan = await prisma.pricingPlan.findUnique({ where: { id: pricingPlanId } });
     if (!plan) {
       return NextResponse.json({ error: 'Không tìm thấy thông tin gói học phí!' }, { status: 404 });
     }
 
+    // 2. Sử dụng Transaction để kiểm soát tuyệt đối, chống tạo trùng mã
     const result = await prisma.$transaction(async (tx) => {
+      // Tìm xem học viên với mã này đã tồn tại trong DB chưa (kể cả đã bị xóa mềm)
       let student = await tx.student.findFirst({
         where: { studentCode: code },
       });
 
       if (student) {
+        // NẾU ĐÃ CÓ: Cập nhật đè vào chính bản ghi cũ đó (Hồi sinh học viên)
         student = await tx.student.update({
           where: { id: student.id },
           data: {
@@ -35,6 +39,7 @@ export async function POST(req: Request) {
           },
         });
       } else {
+        // NẾU CHƯA CÓ: Tạo mới hoàn toàn
         student = await tx.student.create({
           data: {
             studentCode: code,
@@ -47,6 +52,7 @@ export async function POST(req: Request) {
         });
       }
 
+      // Tạo mới một Enrollment (đăng ký gói học) gắn với học viên này
       const enrollment = await tx.enrollment.create({
         data: {
           studentId: student.id,
@@ -73,8 +79,9 @@ export async function POST(req: Request) {
       data: result,
       magicLink: `/p/${result.student.accessToken}`,
     });
+
   } catch (error: any) {
-    console.error('Add student error:', error);
+    console.error('Add/Update student error:', error);
     return NextResponse.json({ error: error.message || 'Lỗi xử lý hệ thống' }, { status: 500 });
   }
 }

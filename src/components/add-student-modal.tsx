@@ -14,8 +14,11 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
   const [phone, setPhone] = useState('');
   const [selectedPlanId, setSelectedPlanId] = useState(plans[0]?.id || '');
   const [selectedTeacherId, setSelectedTeacherId] = useState('');
+  
+  // State mới cho ngày bắt đầu và lịch học thủ công
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [scheduleText, setScheduleText] = useState('');
 
-  // Tự động nhận diện môn học dựa vào chữ cái đầu của Mã HV (P, D, G, T, K)
   const getSubjectFromCode = (code: string) => {
     const firstChar = code.trim().charAt(0).toUpperCase();
     if (firstChar === 'P') return 'Piano';
@@ -28,13 +31,11 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
 
   const detectedSubject = getSubjectFromCode(studentCode);
 
-  // Lọc ra các gói học thuộc đúng bộ môn được nhận diện từ mã HV
   const filteredPlans = plans.filter((p) => {
     if (!detectedSubject) return true;
     return p.subject.toLowerCase() === detectedSubject.toLowerCase();
   });
 
-  // Lọc ra giáo viên phụ trách đúng bộ môn đó
   const filteredTeachers = teachers.filter((t) => {
     if (!detectedSubject) return true;
     if (!t.specializations || t.specializations.length === 0) return true;
@@ -46,19 +47,22 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError('');
 
     try {
-      const res = await fetch('/api/admin/students', {
+      const res = await fetch('/api/admin/students/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentCode,
           fullName,
-          phone,
+          parentPhone: phone,
           pricingPlanId: selectedPlanId,
           teacherId: selectedTeacherId || teachers[0]?.id,
+          startDate,
+          scheduleText,
         }),
       });
 
@@ -69,6 +73,8 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
       setStudentCode('');
       setFullName('');
       setPhone('');
+      setScheduleText('');
+      setSelectedTeacherId('');
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -89,11 +95,11 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 flex-shrink-0">
               <div>
                 <h3 className="font-bold text-slate-900 text-base">Thêm Học Viên Theo Mã Môn</h3>
-                <p className="text-xs text-slate-500">Hệ thống tự động nhận diện môn học và giáo viên từ Mã HV</p>
+                <p className="text-xs text-slate-500">Tự động nhận diện môn, lịch học và giáo viên phụ trách</p>
               </div>
               <button
                 type="button"
@@ -104,7 +110,7 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
               {error && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold text-rose-600">
                   {error}
@@ -143,14 +149,37 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Số Điện Thoại</label>
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Ví dụ: 0901234567"
+                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Ngày Bắt Đầu Học</label>
+                  <input
+                    type="date"
+                    required
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium transition"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Số Điện Thoại</label>
+                <label className="text-xs font-bold text-slate-700">Lịch Học Cố Định</label>
                 <input
                   type="text"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Ví dụ: 0901234567"
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                  value={scheduleText}
+                  onChange={(e) => setScheduleText(e.target.value)}
+                  placeholder="Ví dụ: Thứ 2, 4 - 19h"
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition font-medium"
                 />
               </div>
 
@@ -162,9 +191,9 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
                   className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium transition"
                 >
                   {(filteredPlans.length > 0 ? filteredPlans : plans).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      [{p.subject}] {p.packageName} ({p.numberOfSessions} buổi) — {Number(p.price).toLocaleString('vi-VN')} đ
-                    </option>
+                <option key={p.id} value={p.id}>
+  [{p.subject}] {p.packageName} (1 tháng) — {Number(p.price).toLocaleString('vi-VN')} đ
+</option>
                   ))}
                 </select>
               </div>
@@ -192,7 +221,7 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
                 </select>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}

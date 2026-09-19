@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -17,7 +17,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
@@ -26,7 +26,6 @@ export default function LoginPage() {
         throw new Error(data.error || 'Đăng nhập thất bại.');
       }
 
-      // Ép trình duyệt chuyển hướng cứng bằng lệnh replace để bỏ qua cache client-side
       const targetUrl = data.redirectTo || (data.role === 'TEACHER' ? '/teacher/attendance' : '/admin/dashboard');
       window.location.replace(targetUrl);
 
@@ -40,18 +39,15 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8 space-y-6">
         <div className="text-center space-y-2 flex flex-col items-center">
-          {/* Khung chứa logo đã được tăng kích thước lớn */}
-          <div className="w-full h-40 relative mb-2">
-            <Image
+          <div className="w-48 h-20 relative mb-2 flex items-center justify-center overflow-hidden">
+            <img
               src="/logo.png"
               alt="Friend Music School Logo"
-              fill
-              className="object-contain"
-              priority
+              className="w-full h-full object-contain scale-[2.2]"
             />
           </div>
           <h1 className="text-xl font-black text-slate-900 tracking-tight pt-1">FRIEND MUSIC</h1>
-          <p className="text-xs text-slate-400">Cổng đăng nhập Quản trị & Giáo viên</p>
+          <p className="text-xs text-slate-400">Cổng đăng nhập hệ thống trung tâm</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4 text-sm">
@@ -69,6 +65,18 @@ export default function LoginPage() {
               placeholder="example@gmail.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white text-sm font-medium text-slate-900 placeholder:text-slate-400 transition"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">Mật khẩu</label>
+            <input
+              type="password"
+              required
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white text-sm font-medium text-slate-900 placeholder:text-slate-400 transition"
             />
           </div>

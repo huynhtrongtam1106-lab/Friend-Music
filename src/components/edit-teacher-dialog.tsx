@@ -19,6 +19,7 @@ export default function EditTeacherDialog({ teacher }: { teacher: TeacherData })
   const [name, setName] = useState(teacher.name);
   const [email, setEmail] = useState(teacher.email);
   const [phone, setPhone] = useState(teacher.phone || '');
+  const [password, setPassword] = useState('');
   const [specializations, setSpecializations] = useState<string[]>(teacher.specializations || []);
   const [loading, setLoading] = useState(false);
 
@@ -45,6 +46,7 @@ export default function EditTeacherDialog({ teacher }: { teacher: TeacherData })
           name,
           email,
           phone,
+          password: password.trim() ? password : undefined,
           specializations,
         }),
       });
@@ -53,6 +55,7 @@ export default function EditTeacherDialog({ teacher }: { teacher: TeacherData })
       if (!res.ok) throw new Error(data.error);
 
       setOpen(false);
+      setPassword('');
       router.refresh();
     } catch (err: any) {
       alert(err.message);
@@ -66,7 +69,7 @@ export default function EditTeacherDialog({ teacher }: { teacher: TeacherData })
       <button
         onClick={() => setOpen(true)}
         className="text-slate-400 hover:text-indigo-600 p-1 rounded-lg hover:bg-slate-100 transition"
-        title="Chỉnh sửa thông tin"
+        title="Chỉnh sửa thông tin & Mật khẩu"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -78,8 +81,8 @@ export default function EditTeacherDialog({ teacher }: { teacher: TeacherData })
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
-                <h3 className="font-black text-slate-900 text-base">✏️ Chỉnh Sửa Thông Tin Giáo Viên</h3>
-                <p className="text-xs text-slate-500">Cập nhật hồ sơ và tài khoản đăng nhập</p>
+                <h3 className="font-black text-slate-900 text-base">✏️ Chỉnh Sửa Giáo Viên & Mật Khẩu</h3>
+                <p className="text-xs text-slate-500">Cập nhật hồ sơ và thông tin đăng nhập hệ thống</p>
               </div>
               <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
@@ -104,9 +107,17 @@ export default function EditTeacherDialog({ teacher }: { teacher: TeacherData })
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full p-2.5 border border-slate-200 rounded-xl font-mono"
                 />
-                <span className="text-[10px] text-slate-400 mt-0.5 inline-block">
-                  Dùng email này để giáo viên đăng nhập vào Cổng Điểm Danh.
-                </span>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Mật khẩu mới (Bỏ trống nếu không đổi)</label>
+                <input
+                  type="password"
+                  placeholder="Nhập mật khẩu mới cho giáo viên..."
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full p-2.5 border border-slate-200 rounded-xl"
+                />
               </div>
 
               <div>

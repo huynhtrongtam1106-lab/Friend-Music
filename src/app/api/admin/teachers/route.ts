@@ -54,7 +54,7 @@ export async function PUT(req: Request) {
     const body = await req.json();
     // Hỗ trợ lấy id từ cả body.id hoặc body.teacherId
     const id = body.id || body.teacherId;
-    const { name, email, phone, specializations } = body;
+    const { name, email, phone, specializations, password } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Thiếu ID giáo viên cần cập nhật.' }, { status: 400 });
@@ -68,13 +68,20 @@ export async function PUT(req: Request) {
 
       if (!teacher) throw new Error('Không tìm thấy giáo viên trong hệ thống.');
 
+      const userUpdateData: any = {
+        name,
+        email,
+        phone: phone || null,
+      };
+
+      // Nếu Admin có nhập mật khẩu mới, tiến hành mã hóa và cập nhật passwordHash
+      if (password && password.trim()) {
+        userUpdateData.passwordHash = await bcrypt.hash(password, 10);
+      }
+
       await tx.user.update({
         where: { id: teacher.userId },
-        data: {
-          name,
-          email,
-          phone: phone || null,
-        },
+        data: userUpdateData,
       });
 
       const result = await tx.teacher.update({

@@ -74,6 +74,22 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
             </span>
           </div>
 
+          {/* Lịch học & Ngày bắt đầu khóa */}
+          <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
+            <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-0.5">
+              <span className="text-slate-400 text-[10px] font-bold block">LỊCH HỌC CỐ ĐỊNH</span>
+              <span className="font-black text-slate-800">
+                {enrollment.scheduleText || 'Chưa cập nhật'}
+              </span>
+            </div>
+            <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-0.5">
+              <span className="text-slate-400 text-[10px] font-bold block">NGÀY BẮT ĐẦU KHÓA</span>
+              <span className="font-bold text-slate-800">
+                {enrollment.startDate ? new Date(enrollment.startDate).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
+              </span>
+            </div>
+          </div>
+
           {isGroupClass ? (
             <div className="pt-2 border-t border-slate-100 space-y-2 text-xs">
               <div className="flex justify-between font-medium bg-slate-50 p-2.5 rounded-xl border border-slate-100">
@@ -81,11 +97,11 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
                 <span className="font-bold text-indigo-600">Lớp Nhóm ({enrollment.pricingPlan.packageName})</span>
               </div>
               <div className="flex justify-between font-medium px-1">
-                <span className="text-slate-500">📅 Ngày đóng học phí:</span>
+                <span className="text-slate-500">Ngày đóng học phí:</span>
                 <span className="font-bold text-slate-800">{tuitionDateFormatted || 'Cập nhật sau'}</span>
               </div>
               <div className="flex justify-between font-medium px-1">
-                <span className="text-slate-500">⏰ Ngày đến hạn (Tháng sau):</span>
+                <span className="text-slate-500">Ngày đến hạn (Tháng sau):</span>
                 <span className="font-bold text-rose-600">{nextDueDateFormatted || 'Cập nhật sau'}</span>
               </div>
             </div>
@@ -124,7 +140,7 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
                   {/* Ngày học & Trạng thái điểm danh */}
                   <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                     <span className="font-bold text-slate-800">
-                      📅 Ngày học: {new Date(log.lessonDate).toLocaleDateString('vi-VN')}
+                      Ngày học: {new Date(log.lessonDate).toLocaleDateString('vi-VN')}
                     </span>
                     <span className={`px-2 py-0.5 rounded font-bold ${
                       log.attendance.status === 'ATTENDED' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
@@ -136,7 +152,7 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
                   {/* Thông tin Bài tập & Thời hạn */}
                   {log.assignment && (
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1.5">
-                      <p className="font-bold text-slate-800">📚 Bài tập: <span className="font-normal text-slate-600">{log.assignment}</span></p>
+                      <p className="font-bold text-slate-800">Bài tập: <span className="font-normal text-slate-600">{log.assignment}</span></p>
                       <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
                         <div>
                           <span className="text-slate-400">Hạn nộp (Deadline):</span>{' '}
@@ -155,7 +171,7 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
                     </div>
                   )}
 
-                  {/* Kết quả đánh giá (chỉ hiện Đạt/Không đạt khi GV chấm, còn lại hiện Đang luyện tập) */}
+                  {/* Kết quả đánh giá */}
                   <div className="flex justify-between items-center px-1">
                     <span className="text-slate-500 font-semibold">Kết quả đánh giá:</span>
                     <span className={`font-bold px-2.5 py-1 rounded text-[11px] ${
@@ -165,14 +181,14 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
                         ? 'bg-rose-50 text-rose-700 border border-rose-200' 
                         : 'bg-amber-50 text-amber-800 border border-amber-200'
                     }`}>
-                      {gradeText === 'Chưa kiểm tra' ? '⏳ Đang luyện tập (Chưa kiểm tra)' : gradeText}
+                      {gradeText === 'Chưa kiểm tra' ? 'Đang luyện tập (Chưa kiểm tra)' : gradeText}
                     </span>
                   </div>
 
                   {/* Nhận xét của Thầy/Cô */}
                   {log.teacherEvaluation && (
                     <div className="p-2.5 bg-amber-50/70 border border-amber-200/60 rounded-xl">
-                      <p className="font-bold text-amber-800">💬 Nhận xét của Thầy/Cô:</p>
+                      <p className="font-bold text-amber-800">Nhận xét của Thầy/Cô:</p>
                       <p className="text-amber-950 mt-0.5 italic">"{log.teacherEvaluation}"</p>
                     </div>
                   )}
@@ -180,7 +196,7 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
                   {/* Ghi chú */}
                   {log.note && (
                     <div className="p-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl text-indigo-900">
-                      <p className="font-bold">📌 Ghi chú:</p>
+                      <p className="font-bold">Ghi chú:</p>
                       <p className="mt-0.5">{log.note}</p>
                     </div>
                   )}

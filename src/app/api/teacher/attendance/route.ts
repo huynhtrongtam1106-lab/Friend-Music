@@ -51,6 +51,7 @@ export async function POST(req: Request) {
       }
     }
 
+    // Upsert Attendance (Không chứa trường homework)
     const attendanceRecord = await prisma.attendance.upsert({
       where: {
         enrollmentId_date: {
@@ -79,6 +80,7 @@ export async function POST(req: Request) {
       }
     }
 
+    // Upsert SessionLog lưu bài tập và nhận xét
     await prisma.sessionLog.upsert({
       where: {
         attendanceId: attendanceRecord.id,
