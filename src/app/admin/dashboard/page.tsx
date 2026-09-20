@@ -6,6 +6,7 @@ import { DeleteStudentButton, DeleteTeacherButton } from '@/components/delete-ac
 import EditTeacherDialog from '@/components/edit-teacher-dialog';
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth';
+import ShareLinkBtn from '@/components/ShareLinkBtn'; // Sử dụng tên file mới ShareLinkBtn để tránh lỗi casing
 
 export const dynamic = 'force-dynamic';
 
@@ -205,13 +206,17 @@ export default async function AdminDashboardPage() {
                       <td className="py-3 text-right font-mono font-bold text-slate-900">
                         {Number(item.tuitionFee).toLocaleString('vi-VN')} đ
                       </td>
-                      <td className="py-3 text-center">
+                      <td className="py-3 text-center flex justify-center gap-1.5 items-center">
+                        {/* Sử dụng component nút bấm sao chép nhanh link */}
+                        <ShareLinkBtn accessToken={item.student.accessToken} />
+                        {/* Nút mở xem trực tiếp */}
                         <Link
                           href={`/p/${item.student.accessToken}`}
                           target="_blank"
-                          className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg transition"
+                          className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition text-[11px]"
+                          title="Xem trước sổ liên lạc"
                         >
-                          Mở Sổ Link ↗
+                          👁️
                         </Link>
                       </td>
                       <td className="py-3 text-center">
