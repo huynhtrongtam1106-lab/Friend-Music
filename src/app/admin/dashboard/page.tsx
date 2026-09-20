@@ -4,9 +4,10 @@ import AddStudentModal from '@/components/add-student-modal';
 import ActionMenu from '@/components/action-menu';
 import { DeleteStudentButton, DeleteTeacherButton } from '@/components/delete-action-buttons';
 import EditTeacherDialog from '@/components/edit-teacher-dialog';
+import EditStudentModal from '@/components/edit-student-dialog'; // <-- 1. Import component sửa học viên
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth';
-import ShareLinkBtn from '@/components/ShareLinkBtn'; // Sử dụng tên file mới ShareLinkBtn để tránh lỗi casing
+import ShareLinkBtn from '@/components/ShareLinkBtn';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ export default async function AdminDashboardPage() {
     redirect('/');
   }
 
-  const [rawPlans, teachers, enrollments] = await Promise.all([
+  const [rawPlans, teachers, rawEnrollments] = await Promise.all([
     prisma.pricingPlan.findMany({ orderBy: [{ subject: 'asc' }, { numberOfSessions: 'asc' }] }),
     prisma.teacher.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
     prisma.enrollment.findMany({
@@ -33,6 +34,16 @@ export default async function AdminDashboardPage() {
   const plans = rawPlans.map((p) => ({
     ...p,
     price: Number(p.price),
+  }));
+
+  // Xử lý chuyển đổi các trường kiểu Decimal sang Number để tránh lỗi Next.js Client Component
+  const enrollments = rawEnrollments.map((e) => ({
+    ...e,
+    tuitionFee: Number(e.tuitionFee),
+    pricingPlan: {
+      ...e.pricingPlan,
+      price: Number(e.pricingPlan.price),
+    },
   }));
 
   const dueRenewalCount = enrollments.filter((e) => e.remainingSessions <= 1).length;
@@ -179,10 +190,11 @@ export default async function AdminDashboardPage() {
                     <th className="py-2.5">Họ và Tên</th>
                     <th className="py-2.5">Môn & Gói học</th>
                     <th className="py-2.5">Giáo viên</th>
+                    <th className="py-2.5">Lịch học</th>
                     <th className="py-2.5 text-center">Đã học / Còn lại</th>
                     <th className="py-2.5 text-right">Học phí</th>
                     <th className="py-2.5 text-center">Sổ Liên Lạc</th>
-                    <th className="py-2.5 text-center">Xóa</th>
+                    <th className="py-2.5 text-center">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -194,6 +206,16 @@ export default async function AdminDashboardPage() {
                         <span className="font-bold text-slate-800">[{item.pricingPlan.subject}]</span> {item.pricingPlan.packageName}
                       </td>
                       <td className="py-3 font-medium text-slate-700">{item.teacher.user.name}</td>
+                      
+                      {/* Hiển thị thông tin Lịch học cố định */}
+                      <td className="py-3 font-medium text-slate-600">
+                        {item.scheduleText ? (
+                          <span className="bg-slate-100 px-2 py-1 rounded-md text-slate-800 font-semibold">{item.scheduleText}</span>
+                        ) : (
+                          <span className="text-slate-400 italic">Chưa có</span>
+                        )}
+                      </td>
+
                       <td className="py-3 text-center">
                         <span className="font-bold text-slate-900">{item.attendedSessions}</span>
                         <span className="text-slate-400"> / </span>
@@ -207,9 +229,7 @@ export default async function AdminDashboardPage() {
                         {Number(item.tuitionFee).toLocaleString('vi-VN')} đ
                       </td>
                       <td className="py-3 text-center flex justify-center gap-1.5 items-center">
-                        {/* Sử dụng component nút bấm sao chép nhanh link */}
                         <ShareLinkBtn accessToken={item.student.accessToken} />
-                        {/* Nút mở xem trực tiếp */}
                         <Link
                           href={`/p/${item.student.accessToken}`}
                           target="_blank"
@@ -220,7 +240,11 @@ export default async function AdminDashboardPage() {
                         </Link>
                       </td>
                       <td className="py-3 text-center">
-                        <DeleteStudentButton studentId={item.student.id} studentName={item.student.fullName} />
+                        <div className="flex items-center justify-center gap-1">
+                          {/* Tích hợp nút Sửa học viên */}
+                          <EditStudentModal enrollment={item} plans={plans} teachers={teachers} />
+                          <DeleteStudentButton studentId={item.student.id} studentName={item.student.fullName} />
+                        </div>
                       </td>
                     </tr>
                   ))}

@@ -1,138 +1,170 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-interface Student {
-  id: string;
-  fullName: string;
-  phone: string | null;
-  parentPhone: string | null;
-  status: 'ACTIVE' | 'PAUSED' | 'DROPPED';
-  note: string | null;
-}
-
-interface Props {
-  student: Student;
-  open: boolean;
-  onClose: () => void;
-}
-
-export default function EditStudentDialog({ student, open, onClose }: Props) {
-  const router = useRouter();
-  const [fullName, setFullName] = useState(student.fullName);
-  const [phone, setPhone] = useState(student.phone || '');
-  const [parentPhone, setParentPhone] = useState(student.parentPhone || '');
-  const [status, setStatus] = useState(student.status);
-  const [note, setNote] = useState(student.note || '');
+export default function EditStudentModal({ 
+  enrollment, 
+  plans, 
+  teachers 
+}: { 
+  enrollment: any; 
+  plans: any[]; 
+  teachers: any[] 
+}) {
+  const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  if (!open) return null;
+  const [fullName, setFullName] = useState(enrollment.student.fullName || '');
+  const [phone, setPhone] = useState(enrollment.student.phone || '');
+  const [teacherId, setTeacherId] = useState(enrollment.teacherId || '');
+  const [pricingPlanId, setPricingPlanId] = useState(enrollment.pricingPlanId || '');
+  const [scheduleText, setScheduleText] = useState(enrollment.scheduleText || '');
+  const [status, setStatus] = useState(enrollment.student.status || 'ACTIVE');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      const res = await fetch(`/api/admin/students/${student.id}`, {
+      const res = await fetch(`/api/admin/students`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName, phone, parentPhone, status, note }),
+        body: JSON.stringify({
+          id: enrollment.student.id, // Truyền kèm ID vào body để file API nhận diện chính xác
+          fullName,
+          phone,
+          teacherId,
+          pricingPlanId,
+          scheduleText,
+          status,
+          enrollmentId: enrollment.id
+        }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error('Cập nhật thất bại');
 
-      alert('🎉 Cập nhật thông tin học viên thành công!');
-      onClose();
+      setIsOpen(false);
       router.refresh();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (error) {
+      alert('Có lỗi xảy ra khi cập nhật thông tin học viên!');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[999]">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-          <div>
-            <h3 className="font-black text-slate-900 text-base">✏️ Chỉnh Sửa Học Viên</h3>
-            <p className="text-xs text-slate-500">Cập nhật thông tin cá nhân học viên</p>
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        className="px-2 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-xl transition text-[11px]"
+        title="Chỉnh sửa thông tin học viên"
+      >
+        ✏️
+      </button>
+
+      {isOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-bold text-slate-900 text-base">Sửa Thông Tin Học Viên</h3>
+              <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-slate-700 font-bold">✕</button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700">Họ và tên học viên</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full mt-1 p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700">Số điện thoại</label>
+                <input
+                  type="text"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full mt-1 p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-slate-700">Giáo viên phụ trách</label>
+                  <select
+                    value={teacherId}
+                    onChange={(e) => setTeacherId(e.target.value)}
+                    className="w-full mt-1 p-2 border border-slate-300 rounded-xl bg-white"
+                  >
+                    {teachers.map((t) => (
+                      <option key={t.id} value={t.id}>{t.user.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700">Trạng thái</label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="w-full mt-1 p-2 border border-slate-300 rounded-xl bg-white"
+                  >
+                    <option value="ACTIVE">Đang học</option>
+                    <option value="PAUSED">Bảo lưu</option>
+                    <option value="DROPPED">Nghỉ học</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700">Gói khóa học</label>
+                <select
+                  value={pricingPlanId}
+                  onChange={(e) => setPricingPlanId(e.target.value)}
+                  className="w-full mt-1 p-2 border border-slate-300 rounded-xl bg-white"
+                >
+                  {plans.map((p) => (
+                    <option key={p.id} value={p.id}>[{p.subject}] {p.packageName} ({Number(p.price).toLocaleString()}đ)</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700">Lịch học cố định (Ví dụ: Thứ 2, 4 - 19h)</label>
+                <input
+                  type="text"
+                  value={scheduleText}
+                  onChange={(e) => setScheduleText(e.target.value)}
+                  placeholder="Nhập lịch học cố định..."
+                  className="w-full mt-1 p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold text-slate-600 rounded-xl"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 font-bold text-white rounded-xl shadow-md transition"
+                >
+                  {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
+              </div>
+            </form>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer">✕</button>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-3 text-xs">
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Họ và Tên *</label>
-            <input
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full p-2.5 border border-slate-200 rounded-xl font-bold"
-            />
-          </div>
-
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Số điện thoại học viên</label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full p-2.5 border border-slate-200 rounded-xl"
-            />
-          </div>
-
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">SĐT Phụ huynh</label>
-            <input
-              value={parentPhone}
-              onChange={(e) => setParentPhone(e.target.value)}
-              className="w-full p-2.5 border border-slate-200 rounded-xl"
-            />
-          </div>
-
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Trạng thái học viên</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as any)}
-              className="w-full p-2.5 border border-slate-200 rounded-xl font-bold"
-            >
-              <option value="ACTIVE">Đang học (ACTIVE)</option>
-              <option value="PAUSED">Tạm nghỉ (PAUSED)</option>
-              <option value="DROPPED">Nghỉ học (DROPPED)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Ghi chú</label>
-            <textarea
-              rows={3}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="w-full p-2.5 border border-slate-200 rounded-xl"
-            />
-          </div>
-
-          <div className="flex gap-2 pt-3 border-t border-slate-100">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 py-2.5 bg-slate-900 hover:bg-black text-white font-bold rounded-xl cursor-pointer transition"
-            >
-              {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl cursor-pointer transition hover:bg-slate-200"
-            >
-              Hủy
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      )}
+    </>
   );
 }

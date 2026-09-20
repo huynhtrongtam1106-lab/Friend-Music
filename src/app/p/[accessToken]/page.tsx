@@ -29,7 +29,9 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
   }
 
   const enrollment = student.enrollments[0];
-  const progress = Math.round((enrollment.attendedSessions / enrollment.totalSessions) * 100);
+  const progress = enrollment.totalSessions > 0 
+    ? Math.round((enrollment.attendedSessions / enrollment.totalSessions) * 100) 
+    : 0;
 
   const isGroupClass = 
     enrollment.pricingPlan.packageName.toLowerCase().includes('nhóm') || 
@@ -74,7 +76,7 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
             </span>
           </div>
 
-          {/* Lịch học & Ngày bắt đầu khóa */}
+          {/* Lịch học cố định & Ngày bắt đầu khóa */}
           <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
             <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-0.5">
               <span className="text-slate-400 text-[10px] font-bold block">LỊCH HỌC CỐ ĐỊNH</span>
