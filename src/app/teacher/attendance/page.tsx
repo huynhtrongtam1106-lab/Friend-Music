@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import AttendanceClient from './attendance-client';
+import { requireRole } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,8 +10,12 @@ export default async function TeacherAttendancePage(props: {
   searchParams: Promise<{ tid?: string }>;
 }) {
   const searchParams = await props.searchParams;
+  const user = await requireRole(['ADMIN', 'TEACHER']);
+  if (!user) {
+    redirect('/');
+  }
+  const role = user.role;
   const cookieStore = await cookies();
-  const role = cookieStore.get('friend_user_role')?.value;
   const cookieTeacherId = cookieStore.get('friend_teacher_id')?.value;
   const targetTeacherId = searchParams?.tid;
 

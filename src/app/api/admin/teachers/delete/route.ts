@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
+    const user = await requireRole(['ADMIN']);
+    if (!user) {
+      return NextResponse.json({ error: 'Bạn không có quyền thực hiện thao tác này.' }, { status: 401 });
+    }
+
     const { teacherId } = await req.json();
 
     if (!teacherId) {

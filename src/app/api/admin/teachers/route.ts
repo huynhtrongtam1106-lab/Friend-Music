@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { requireRole } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
+    const user = await requireRole(['ADMIN']);
+    if (!user) {
+      return NextResponse.json({ error: 'Bạn không có quyền thực hiện thao tác này.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { name, email, phone, specializations } = body;
 
@@ -51,6 +57,11 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
+    const user = await requireRole(['ADMIN']);
+    if (!user) {
+      return NextResponse.json({ error: 'Bạn không có quyền thực hiện thao tác này.' }, { status: 401 });
+    }
+
     const body = await req.json();
     // Hỗ trợ lấy id từ cả body.id hoặc body.teacherId
     const id = body.id || body.teacherId;

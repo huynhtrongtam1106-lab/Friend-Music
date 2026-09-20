@@ -1,4 +1,3 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import AddStudentModal from '@/components/add-student-modal';
@@ -7,14 +6,13 @@ import { DeleteStudentButton, DeleteTeacherButton } from '@/components/delete-ac
 import EditTeacherDialog from '@/components/edit-teacher-dialog';
 import Link from 'next/link';
 import Image from 'next/image';
+import { requireRole } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboardPage() {
-  const cookieStore = await cookies();
-  const role = cookieStore.get('friend_user_role')?.value;
-
-  if (role !== 'ADMIN') {
+  const user = await requireRole(['ADMIN']);
+  if (!user) {
     redirect('/');
   }
 

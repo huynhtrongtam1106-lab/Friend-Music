@@ -55,14 +55,21 @@ export async function POST(req: Request) {
     }
 
     const cookieStore = await cookies();
-    cookieStore.set('friend_user_role', user.role || 'ADMIN', { path: '/', maxAge: 604800 });
-    cookieStore.set('auth_session', 'true', { path: '/', maxAge: 604800 });
-    cookieStore.set('userId', user.id, { path: '/', maxAge: 604800 });
-    
+    const cookieOpts = {
+      path: '/',
+      maxAge: 604800,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+    };
+    cookieStore.set('friend_user_role', user.role || 'ADMIN', cookieOpts);
+    cookieStore.set('auth_session', 'true', cookieOpts);
+    cookieStore.set('userId', user.id, cookieOpts);
+
     // Giữ nguyên cookie cũ và bổ sung thêm 'friend_teacher_id' để tương thích tuyệt đối với trang attendance
     if (teacherId) {
-      cookieStore.set('teacherId', teacherId, { path: '/', maxAge: 604800 });
-      cookieStore.set('friend_teacher_id', teacherId, { path: '/', maxAge: 604800 });
+      cookieStore.set('teacherId', teacherId, cookieOpts);
+      cookieStore.set('friend_teacher_id', teacherId, cookieOpts);
     }
 
     const redirectTo = user.role === 'TEACHER' ? '/teacher/attendance' : '/admin/dashboard';
