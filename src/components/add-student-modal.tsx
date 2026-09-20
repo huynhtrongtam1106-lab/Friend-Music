@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AddStudentModal({ plans, teachers }: { plans: any[]; teachers: any[] }) {
@@ -12,7 +12,7 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
   const [studentCode, setStudentCode] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [selectedPlanId, setSelectedPlanId] = useState(plans[0]?.id || '');
+  const [selectedPlanId, setSelectedPlanId] = useState('');
   const [selectedTeacherId, setSelectedTeacherId] = useState('');
   
   // State mới cho ngày bắt đầu và lịch học thủ công
@@ -44,6 +44,36 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
       detectedSubject.toLowerCase().includes(spec.toLowerCase())
     );
   });
+
+  // 🎯 QUAN TRỌNG: Tự động đổi ID gói học về đúng gói đầu tiên của môn đang lọc
+  useEffect(() => {
+    const activePlans = filteredPlans.length > 0 ? filteredPlans : plans;
+    if (activePlans.length > 0) {
+      // Nếu gói hiện tại không nằm trong danh sách được phép chọn, đổi ngay về gói đầu tiên
+      const exists = activePlans.some(p => p.id === selectedPlanId);
+      if (!exists) {
+        setSelectedPlanId(activePlans[0].id);
+      }
+    }
+  }, [detectedSubject, filteredPlans, plans, selectedPlanId]);
+
+  // 🎯 Tự động đổi giáo viên theo môn
+  useEffect(() => {
+    const activeTeachers = filteredTeachers.length > 0 ? filteredTeachers : teachers;
+    if (activeTeachers.length > 0) {
+      const exists = activeTeachers.some(t => t.id === selectedTeacherId);
+      if (!exists) {
+        setSelectedTeacherId(activeTeachers[0].id);
+      }
+    } else {
+      setSelectedTeacherId('');
+    }
+  }, [detectedSubject, filteredTeachers, teachers, selectedTeacherId]);
+
+  const handleStudentCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newCode = e.target.value.toUpperCase();
+    setStudentCode(newCode);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,7 +154,7 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
                     type="text"
                     required
                     value={studentCode}
-                    onChange={(e) => setStudentCode(e.target.value.toUpperCase())}
+                    onChange={handleStudentCodeChange}
                     placeholder="VD: P01, D01, G01..."
                     className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-bold transition uppercase"
                   />
@@ -191,9 +221,9 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
                   className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium transition"
                 >
                   {(filteredPlans.length > 0 ? filteredPlans : plans).map((p) => (
-                <option key={p.id} value={p.id}>
-  [{p.subject}] {p.packageName} (1 tháng) — {Number(p.price).toLocaleString('vi-VN')} đ
-</option>
+                    <option key={p.id} value={p.id}>
+                      [{p.subject}] {p.packageName} (1 tháng) — {Number(p.price).toLocaleString('vi-VN')} đ
+                    </option>
                   ))}
                 </select>
               </div>

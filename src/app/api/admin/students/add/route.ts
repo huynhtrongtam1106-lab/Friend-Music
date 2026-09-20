@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth';
 
+// 1. POST: Tạo mới hoặc khôi phục học viên (Code gốc của anh)
 export async function POST(req: Request) {
   try {
     const user = await requireRole(['ADMIN']);
@@ -26,13 +27,11 @@ export async function POST(req: Request) {
 
     // 2. Sử dụng Transaction để kiểm soát tuyệt đối, chống tạo trùng mã
     const result = await prisma.$transaction(async (tx) => {
-      // Tìm xem học viên với mã này đã tồn tại trong DB chưa (kể cả đã bị xóa mềm)
       let student = await tx.student.findFirst({
         where: { studentCode: code },
       });
 
       if (student) {
-        // NẾU ĐÃ CÓ: Cập nhật đè vào chính bản ghi cũ đó (Hồi sinh học viên)
         student = await tx.student.update({
           where: { id: student.id },
           data: {
@@ -45,7 +44,6 @@ export async function POST(req: Request) {
           },
         });
       } else {
-        // NẾU CHƯA CÓ: Tạo mới hoàn toàn
         student = await tx.student.create({
           data: {
             studentCode: code,
@@ -58,7 +56,6 @@ export async function POST(req: Request) {
         });
       }
 
-      // Tạo mới một Enrollment (đăng ký gói học) gắn với học viên này
       const enrollment = await tx.enrollment.create({
         data: {
           studentId: student.id,
@@ -87,7 +84,46 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    console.error('Add/Update student error:', error);
+    console.error('Add student error:', error);
+    return NextResponse.json({ error: error.message || 'Lỗi xử lý hệ thống' }, { status: 500 });
+  }
+}
+
+// 2. PUT: Chỉnh sửa / Cập nhật thông tin học viên theo ID
+export async function PUT(req: Request) {
+  try {
+    const user = await requireRole(['ADMIN']);
+    if (!user) {
+      return NextResponse.json({ error: 'Bạn không có quyền thực hiện thao tác này.' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { id, fullName, phone, parentPhone, parentEmail, status, note } = body;
+
+    if (!id || !fullName) {
+      return NextResponse.json({ error: 'Thiếu thông tin ID hoặc Họ tên học viên!' }, { status: 400 });
+    }
+
+    const updatedStudent = await prisma.student.update({
+      where: { id },
+      data: {
+        fullName: fullName.trim(),
+        phone: phone?.trim() || null,
+        parentPhone: parentPhone?.trim() || null,
+        parentEmail: parentEmail?.trim() || null,
+        status: status || 'ACTIVE',
+        note: note?.trim() || null,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Đã cập nhật thông tin học viên ${updatedStudent.fullName}`,
+      data: updatedStudent,
+    });
+
+  } catch (error: any) {
+    console.error('Update student error:', error);
     return NextResponse.json({ error: error.message || 'Lỗi xử lý hệ thống' }, { status: 500 });
   }
 }
