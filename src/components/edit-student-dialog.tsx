@@ -22,6 +22,9 @@ export default function EditStudentModal({
   const [pricingPlanId, setPricingPlanId] = useState(enrollment.pricingPlanId || '');
   const [scheduleText, setScheduleText] = useState(enrollment.scheduleText || '');
   const [status, setStatus] = useState(enrollment.student.status || 'ACTIVE');
+  const [startDate, setStartDate] = useState(
+    enrollment.startDate ? new Date(enrollment.startDate).toISOString().split('T')[0] : ''
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +42,8 @@ export default function EditStudentModal({
           pricingPlanId,
           scheduleText,
           status,
-          enrollmentId: enrollment.id
+          enrollmentId: enrollment.id,
+          startDate,
         }),
       });
 
@@ -96,16 +100,13 @@ export default function EditStudentModal({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="font-bold text-slate-700">Giáo viên phụ trách</label>
-                  <select
-                    value={teacherId}
-                    onChange={(e) => setTeacherId(e.target.value)}
-                    className="w-full mt-1 p-2 border border-slate-300 rounded-xl bg-white"
-                  >
-                    {teachers.map((t) => (
-                      <option key={t.id} value={t.id}>{t.user.name}</option>
-                    ))}
-                  </select>
+                  <label className="font-bold text-slate-700">Ngày bắt đầu học</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full mt-1 p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
                 </div>
                 <div>
                   <label className="font-bold text-slate-700">Trạng thái</label>
@@ -119,6 +120,19 @@ export default function EditStudentModal({
                     <option value="DROPPED">Nghỉ học</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700">Giáo viên phụ trách</label>
+                <select
+                  value={teacherId}
+                  onChange={(e) => setTeacherId(e.target.value)}
+                  className="w-full mt-1 p-2 border border-slate-300 rounded-xl bg-white"
+                >
+                  {teachers.map((t) => (
+                    <option key={t.id} value={t.id}>{t.user.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div>

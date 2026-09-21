@@ -4,11 +4,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import AddTeacherDialog from '@/components/add-teacher-dialog';
 import DeleteStudentsDialog from '@/components/delete-students-dialog';
+import ManagePricingPlansDialog from '@/components/manage-pricing-plans-dialog';
 
 export default function ActionMenu() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [teacherDialogOpen, setTeacherDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [plansDialogOpen, setPlansDialogOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -64,6 +66,19 @@ export default function ActionMenu() {
               type="button"
               onClick={() => {
                 setDropdownOpen(false);
+                setPlansDialogOpen(true);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 rounded-xl transition text-left"
+            >
+              <span>💰</span> Quản Lý Gói Học
+            </button>
+
+            <div className="border-t border-slate-100 my-1"></div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setDropdownOpen(false);
                 setDeleteDialogOpen(true);
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition text-left"
@@ -75,6 +90,7 @@ export default function ActionMenu() {
       </div>
 
       {/* Các Dialog đặt ngoài phạm vi Dropdown để không bị chặn sự kiện */}
+      <ManagePricingPlansDialog open={plansDialogOpen} onClose={() => setPlansDialogOpen(false)} />
       <AddTeacherDialog
         open={teacherDialogOpen}
         onClose={() => setTeacherDialogOpen(false)}

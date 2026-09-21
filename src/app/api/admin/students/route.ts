@@ -103,11 +103,15 @@ export async function PUT(req: Request) {
     // Hướng linh hoạt ID học viên (hỗ trợ cả id hoặc studentId)
     const studentId = body.id || body.studentId;
     const phoneValue = body.phone || body.parentPhone;
-    const { fullName, parentEmail, status, note, teacherId, pricingPlanId, scheduleText, enrollmentId } = body;
+    const { fullName, parentEmail, status, note, teacherId, pricingPlanId, scheduleText, enrollmentId, startDate } = body;
 
     if (!studentId || !fullName) {
       return NextResponse.json({ error: 'Thiếu thông tin ID hoặc Họ tên học viên!' }, { status: 400 });
     }
+
+    // Parse ngày bắt đầu học an toàn: input dạng "YYYY-MM-DD" (từ <input type="date">).
+    // Cố định giờ ở 12:00 trưa để tránh lệch ngày khi chuyển múi giờ (UTC <-> GMT+7).
+    const parsedStartDate = startDate ? new Date(`${startDate}T12:00:00`) : undefined;
 
     // 1. Cập nhật thông tin cơ bản trong bảng Student
     const updatedStudent = await prisma.student.update({
@@ -118,10 +122,11 @@ export async function PUT(req: Request) {
         parentEmail: parentEmail?.trim() || null,
         status: status || 'ACTIVE',
         note: note?.trim() || null,
+        ...(parsedStartDate ? { startDate: parsedStartDate } : {}),
       },
     });
 
-    // 2. Nếu có enrollmentId, tiến hành cập nhật thông tin học phần (Gói học, Giáo viên, Lịch học)
+    // 2. Nếu có enrollmentId, tiến hành cập nhật thông tin học phần (Gói học, Giáo viên, Lịch học, Ngày bắt đầu)
     if (enrollmentId) {
       const updateData: any = {
         scheduleText: scheduleText?.trim() || null,
@@ -129,6 +134,10 @@ export async function PUT(req: Request) {
 
       if (teacherId) {
         updateData.teacherId = teacherId;
+      }
+
+      if (parsedStartDate) {
+        updateData.startDate = parsedStartDate;
       }
 
       // Nếu có thay đổi gói học, tự động cập nhật lại tổng số buổi và học phí chuẩn theo PricingPlan mới

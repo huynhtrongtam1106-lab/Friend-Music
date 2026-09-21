@@ -11,13 +11,17 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { studentCode, fullName, parentPhone, parentEmail, teacherId, pricingPlanId, note } = body;
+    const { studentCode, fullName, parentPhone, parentEmail, teacherId, pricingPlanId, note, startDate, scheduleText } = body;
 
     if (!studentCode || !fullName || !teacherId || !pricingPlanId) {
       return NextResponse.json({ error: 'Vui lòng nhập đầy đủ Mã HV, Tên, Giáo viên và Gói học!' }, { status: 400 });
     }
 
     const code = studentCode.trim().toUpperCase();
+
+    // Parse ngày bắt đầu học an toàn: input dạng "YYYY-MM-DD" (từ <input type="date">).
+    // Cố định giờ ở 12:00 trưa để tránh lệch ngày khi chuyển múi giờ (UTC <-> GMT+7).
+    const parsedStartDate = startDate ? new Date(`${startDate}T12:00:00`) : new Date();
 
     // 1. Kiểm tra gói học tồn tại
     const plan = await prisma.pricingPlan.findUnique({ where: { id: pricingPlanId } });
@@ -41,6 +45,7 @@ export async function POST(req: Request) {
             note: note?.trim() || null,
             status: 'ACTIVE',
             deletedAt: null,
+            startDate: parsedStartDate,
           },
         });
       } else {
@@ -52,6 +57,7 @@ export async function POST(req: Request) {
             parentEmail: parentEmail?.trim() || null,
             note: note?.trim() || null,
             status: 'ACTIVE',
+            startDate: parsedStartDate,
           },
         });
       }
@@ -66,6 +72,8 @@ export async function POST(req: Request) {
           remainingSessions: plan.numberOfSessions,
           tuitionFee: plan.price,
           paymentStatus: 'UNPAID',
+          startDate: parsedStartDate,
+          scheduleText: scheduleText?.trim() || null,
         },
         include: {
           pricingPlan: true,
@@ -98,11 +106,26 @@ export async function PUT(req: Request) {
     }
 
     const body = await req.json();
-    const { id, fullName, phone, parentPhone, parentEmail, status, note } = body;
+    const {
+      id,
+      fullName,
+      phone,
+      parentPhone,
+      parentEmail,
+      status,
+      note,
+      enrollmentId,
+      teacherId,
+      pricingPlanId,
+      scheduleText,
+      startDate,
+    } = body;
 
     if (!id || !fullName) {
       return NextResponse.json({ error: 'Thiếu thông tin ID hoặc Họ tên học viên!' }, { status: 400 });
     }
+
+    const parsedStartDate = startDate ? new Date(`${startDate}T12:00:00`) : undefined;
 
     const updatedStudent = await prisma.student.update({
       where: { id },
@@ -113,8 +136,23 @@ export async function PUT(req: Request) {
         parentEmail: parentEmail?.trim() || null,
         status: status || 'ACTIVE',
         note: note?.trim() || null,
+        ...(parsedStartDate ? { startDate: parsedStartDate } : {}),
       },
     });
+
+    // Cập nhật thêm Enrollment (giáo viên phụ trách, gói học, lịch học, ngày bắt đầu)
+    // — trước đây các trường này được gửi lên từ form nhưng bị bỏ sót, không lưu.
+    if (enrollmentId) {
+      await prisma.enrollment.update({
+        where: { id: enrollmentId },
+        data: {
+          ...(teacherId ? { teacherId } : {}),
+          ...(pricingPlanId ? { pricingPlanId } : {}),
+          ...(scheduleText !== undefined ? { scheduleText: scheduleText?.trim() || null } : {}),
+          ...(parsedStartDate ? { startDate: parsedStartDate } : {}),
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,

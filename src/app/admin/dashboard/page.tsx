@@ -36,6 +36,11 @@ export default async function AdminDashboardPage() {
     price: Number(p.price),
   }));
 
+  // Form "Thêm học viên mới" chỉ nên gợi ý các gói đang bật (isActive),
+  // còn form "Sửa học viên" vẫn cần thấy đủ mọi gói kể cả gói đã ẩn
+  // để không làm mất lựa chọn hiện tại của học viên cũ.
+  const activePlans = plans.filter((p) => p.isActive);
+
   // Xử lý chuyển đổi các trường kiểu Decimal sang Number để tránh lỗi Next.js Client Component
   const enrollments = rawEnrollments.map((e) => ({
     ...e,
@@ -70,7 +75,13 @@ export default async function AdminDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <AddStudentModal plans={plans} teachers={teachers} />
+            <AddStudentModal plans={activePlans} teachers={teachers} />
+            <Link
+              href="/admin/attendance-report"
+              className="px-3 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl border border-indigo-200 transition whitespace-nowrap"
+            >
+              📋 Báo Cáo Điểm Danh
+            </Link>
             <ActionMenu />
             <a
               href="/api/auth/logout"
