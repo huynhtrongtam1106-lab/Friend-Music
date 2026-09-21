@@ -54,27 +54,27 @@ export default async function AdminDashboardPage() {
   const dueRenewalCount = enrollments.filter((e) => e.remainingSessions <= 1).length;
 
   return (
-    <main className="min-h-screen bg-slate-50 p-6 font-sans text-slate-800">
+    <main className="min-h-screen w-full overflow-x-hidden bg-slate-50 p-4 sm:p-6 font-sans text-slate-800">
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Header Admin - Phóng to logo cực đại */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-5">
-            <div className="w-64 h-24 relative flex-shrink-0 flex items-center justify-center overflow-hidden">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+            <div className="w-16 h-16 sm:w-64 sm:h-24 relative shrink-0 flex items-center justify-center overflow-hidden">
               <img 
                 src="/logo.png" 
                 alt="Friend Music School Logo" 
-                className="w-full h-full object-contain scale-[2.2]"
+                className="w-full h-full object-contain sm:scale-[2.2]"
               />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">FRIEND MUSIC SCHOOL</h1>
-                <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-md">ADMIN</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-base sm:text-xl font-black text-slate-900 tracking-tight break-words">FRIEND MUSIC SCHOOL</h1>
+                <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-md shrink-0">ADMIN</span>
               </div>
               <p className="text-xs text-emerald-600 font-bold mt-0.5">● Quản lý trung tâm & Toàn quyền hệ thống</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <AddStudentModal plans={activePlans} teachers={teachers} />
             <Link
               href="/admin/attendance-report"
@@ -193,8 +193,8 @@ export default async function AdminDashboardPage() {
               <p className="text-xs text-slate-400">Bấm nút "Thêm Học Viên Mới" ở trên để tạo hồ sơ đầu tiên.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
+              <table className="w-full min-w-[820px] text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-400 uppercase font-semibold">
                     <th className="py-2.5">Mã HV</th>
