@@ -75,6 +75,24 @@ export default function ActionMenu() {
 
             <div className="border-t border-slate-100 my-1"></div>
 
+            <Link
+              href="/admin/students/paused"
+              onClick={() => setDropdownOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-amber-700 hover:bg-amber-50 rounded-xl transition"
+            >
+              <span>⏸️</span> Danh Sách HV Bảo Lưu
+            </Link>
+
+            <Link
+              href="/admin/students/dropped"
+              onClick={() => setDropdownOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition"
+            >
+              <span>🚪</span> Danh Sách HV Thôi Học
+            </Link>
+
+            <div className="border-t border-slate-100 my-1"></div>
+
             <button
               type="button"
               onClick={() => {

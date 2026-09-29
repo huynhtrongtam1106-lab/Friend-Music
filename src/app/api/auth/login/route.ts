@@ -34,24 +34,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Tài khoản này chưa được thiết lập mật khẩu. Vui lòng liên hệ Admin.' }, { status: 400 });
     }
 
-    // So sánh mật khẩu (hỗ trợ cả mật khẩu cũ lưu dạng thường lẫn mã hóa bcrypt)
-    const isBcryptHash = user.passwordHash.startsWith('$2a$') || user.passwordHash.startsWith('$2b$');
+    // So sánh mật khẩu (Hỗ trợ cả mật khẩu thường hoặc mã hóa bcrypt)
     let isPasswordValid = false;
-
-    if (isBcryptHash) {
+    if (user.passwordHash.startsWith('$2a$') || user.passwordHash.startsWith('$2b$')) {
       isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     } else {
-      // Tài khoản cũ chưa được hash - so sánh trực tiếp
       isPasswordValid = (user.passwordHash === password);
-
-      // Đăng nhập đúng thì nâng cấp ngay sang bcrypt để không còn lưu mật khẩu dạng thô nữa
-      if (isPasswordValid) {
-        const newHash = await bcrypt.hash(password, 10);
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { passwordHash: newHash },
-        });
-      }
     }
 
     if (!isPasswordValid) {
