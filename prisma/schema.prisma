@@ -60,6 +60,7 @@ model Teacher {
 
   enrollments     Enrollment[]
   attendances     Attendance[]
+  extraEnrollments EnrollmentTeacher[]
 
   @@map("teachers")
 }
@@ -130,11 +131,27 @@ model Enrollment {
   teacher           Teacher       @relation(fields: [teacherId], references: [id], onDelete: Restrict)
   pricingPlan       PricingPlan   @relation(fields: [pricingPlanId], references: [id], onDelete: Restrict)
   attendances       Attendance[]
+  // Giáo viên phụ (đồng dạy). Giáo viên chính vẫn là teacherId ở trên.
+  extraTeachers     EnrollmentTeacher[]
 
   @@index([studentId])
   @@index([teacherId])
   @@index([remainingSessions])
   @@map("enrollments")
+}
+
+// Bảng nối: 1 học viên (enrollment) có thể có thêm giáo viên phụ
+model EnrollmentTeacher {
+  enrollmentId String     @map("enrollment_id")
+  teacherId    String     @map("teacher_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  teacher      Teacher    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([enrollmentId, teacherId])
+  @@index([teacherId])
+  @@map("enrollment_teachers")
 }
 
 // 5. ĐIỂM DANH & SỔ LIÊN LẠC ĐIỆN TỬ

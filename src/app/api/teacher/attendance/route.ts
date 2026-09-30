@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth';
+import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
   try {
@@ -18,10 +19,29 @@ export async function POST(req: Request) {
 
     const enrollment = await prisma.enrollment.findUnique({
       where: { id: enrollmentId },
+      include: { extraTeachers: { select: { teacherId: true } } },
     });
 
     if (!enrollment) {
       return NextResponse.json({ error: 'Không tìm thấy thông tin học viên' }, { status: 404 });
+    }
+
+    // Xác định giáo viên đang điểm danh (GV chính hoặc GV phụ của học viên này)
+    const cookieStore = await cookies();
+    const cookieTeacherId = cookieStore.get('friend_teacher_id')?.value;
+    const allowedTeacherIds = [enrollment.teacherId, ...enrollment.extraTeachers.map((x) => x.teacherId)];
+    let actingTeacherId = enrollment.teacherId;
+
+    if (user.role === 'TEACHER') {
+      if (!cookieTeacherId || !allowedTeacherIds.includes(cookieTeacherId)) {
+        return NextResponse.json({ error: 'Học viên này không thuộc lớp của bạn.' }, { status: 403 });
+      }
+      actingTeacherId = cookieTeacherId;
+    } else if (body.teacherId && allowedTeacherIds.includes(body.teacherId)) {
+      // Admin điểm danh hộ 1 thầy cụ thể
+      actingTeacherId = body.teacherId;
+    } else if (cookieTeacherId && allowedTeacherIds.includes(cookieTeacherId)) {
+      actingTeacherId = cookieTeacherId;
     }
 
     let newRemaining = enrollment.remainingSessions;
@@ -73,7 +93,7 @@ export async function POST(req: Request) {
         date: today,
         enrollment: { connect: { id: enrollmentId } },
         student: { connect: { id: enrollment.studentId } },
-        teacher: { connect: { id: enrollment.teacherId } },
+        teacher: { connect: { id: actingTeacherId } },
       },
     });
 

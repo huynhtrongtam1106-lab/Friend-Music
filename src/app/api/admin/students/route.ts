@@ -155,9 +155,30 @@ export async function PUT(req: Request) {
         }
       }
 
-      await prisma.enrollment.update({
-        where: { id: enrollmentId },
-        data: updateData,
+      // Nhiều giáo viên: teacherIds[0] = GV chính, phần còn lại = GV phụ
+      const teacherIds: string[] = Array.isArray(body.teacherIds)
+        ? Array.from(new Set<string>(body.teacherIds.filter(Boolean)))
+        : [];
+      if (teacherIds.length > 0) {
+        updateData.teacherId = teacherIds[0];
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.enrollment.update({
+          where: { id: enrollmentId },
+          data: updateData,
+        });
+
+        if (teacherIds.length > 0) {
+          await tx.enrollmentTeacher.deleteMany({ where: { enrollmentId } });
+          const extra = teacherIds.slice(1);
+          if (extra.length > 0) {
+            await tx.enrollmentTeacher.createMany({
+              data: extra.map((tid) => ({ enrollmentId, teacherId: tid })),
+              skipDuplicates: true,
+            });
+          }
+        }
       });
     }
 

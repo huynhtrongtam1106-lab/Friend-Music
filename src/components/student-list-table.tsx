@@ -14,6 +14,11 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   DROPPED: { label: '🚪 Thôi học', cls: 'bg-slate-200 text-slate-700' },
 };
 
+const teacherNames = (e: any): string[] => [
+  e.teacher.user.name,
+  ...((e.extraTeachers || []).map((x: any) => x.teacher.user.name)),
+];
+
 const normalize = (s: string) =>
   s
     .normalize('NFD')
@@ -50,7 +55,7 @@ export default function StudentListTable({
           e.student.phone,
           e.pricingPlan.subject,
           e.pricingPlan.packageName,
-          e.teacher.user.name,
+          ...teacherNames(e),
           e.scheduleText,
         ]
           .filter(Boolean)
@@ -120,7 +125,14 @@ export default function StudentListTable({
                   <td className="py-3 text-slate-600">
                     <span className="font-bold text-slate-800">[{item.pricingPlan.subject}]</span> {item.pricingPlan.packageName}
                   </td>
-                  <td className="py-3 font-medium text-slate-700">{item.teacher.user.name}</td>
+                  <td className="py-3 font-medium text-slate-700">
+                    {teacherNames(item).map((name, i) => (
+                      <div key={i} className={i === 0 ? '' : 'text-slate-500'}>
+                        {name}
+                        {i > 0 && <span className="ml-1 text-[9px] font-bold bg-slate-100 text-slate-500 px-1 rounded">phụ</span>}
+                      </div>
+                    ))}
+                  </td>
                   {!isActive && (
                     <td className="py-3">
                       <span className={`font-bold px-2 py-1 rounded-full text-[11px] whitespace-nowrap ${(STATUS_BADGE[item.student.status] ?? STATUS_BADGE.ACTIVE).cls}`}>

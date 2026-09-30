@@ -41,6 +41,7 @@ export default function AttendanceClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           enrollmentId, 
+          teacherId: teacher?.id,
           status, 
           assignment, 
           evaluation,

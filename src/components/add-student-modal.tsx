@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import TeacherMultiSelect from '@/components/teacher-multi-select';
 
 export default function AddStudentModal({ plans, teachers }: { plans: any[]; teachers: any[] }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,7 +14,7 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [selectedPlanId, setSelectedPlanId] = useState('');
-  const [selectedTeacherId, setSelectedTeacherId] = useState('');
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
   
   // State mới cho ngày bắt đầu và lịch học thủ công
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -57,18 +58,16 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
     }
   }, [detectedSubject, filteredPlans, plans, selectedPlanId]);
 
-  // 🎯 Tự động đổi giáo viên theo môn
+  // 🎯 Khi đổi môn: giữ lại các thầy còn phù hợp, nếu không còn ai thì chọn thầy đầu tiên của môn
   useEffect(() => {
-    const activeTeachers = filteredTeachers.length > 0 ? filteredTeachers : teachers;
-    if (activeTeachers.length > 0) {
-      const exists = activeTeachers.some(t => t.id === selectedTeacherId);
-      if (!exists) {
-        setSelectedTeacherId(activeTeachers[0].id);
-      }
-    } else {
-      setSelectedTeacherId('');
-    }
-  }, [detectedSubject, filteredTeachers, teachers, selectedTeacherId]);
+    const active = filteredTeachers.length > 0 ? filteredTeachers : teachers;
+    setSelectedTeacherIds((prev) => {
+      const keep = prev.filter((id) => active.some((t) => t.id === id));
+      if (keep.length > 0) return keep.length === prev.length ? prev : keep;
+      return active[0] ? [active[0].id] : [];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detectedSubject, teachers]);
 
   const handleStudentCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newCode = e.target.value.toUpperCase();
@@ -78,6 +77,10 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
+    if (selectedTeacherIds.length === 0) {
+      setError('Vui lòng chọn ít nhất 1 giáo viên phụ trách!');
+      return;
+    }
     setLoading(true);
     setError('');
 
@@ -90,7 +93,8 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
           fullName,
           parentPhone: phone,
           pricingPlanId: selectedPlanId,
-          teacherId: selectedTeacherId || teachers[0]?.id,
+          teacherId: selectedTeacherIds[0],
+          teacherIds: selectedTeacherIds,
           startDate,
           scheduleText,
         }),
@@ -104,7 +108,7 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
       setFullName('');
       setPhone('');
       setScheduleText('');
-      setSelectedTeacherId('');
+      setSelectedTeacherIds([]);
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -230,25 +234,19 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                  <span>Giáo Viên Phụ Trách Bộ Môn</span>
+                  <span>Giáo Viên Phụ Trách (chọn được nhiều thầy)</span>
                   {detectedSubject && (
                     <span className="text-[10px] text-emerald-600 font-mono font-bold">
                       Đã lọc theo môn: {detectedSubject}
                     </span>
                   )}
                 </label>
-                <select
-                  value={selectedTeacherId}
-                  onChange={(e) => setSelectedTeacherId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium transition"
-                >
-                  <option value="">-- Chọn giáo viên phụ trách --</option>
-                  {(filteredTeachers.length > 0 ? filteredTeachers : teachers).map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.user.name} ({t.specializations?.join(', ') || 'Chuyên môn khác'})
-                    </option>
-                  ))}
-                </select>
+                <TeacherMultiSelect
+                  teachers={teachers}
+                  value={selectedTeacherIds}
+                  onChange={setSelectedTeacherIds}
+                  subject={detectedSubject || undefined}
+                />
               </div>
 
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 flex-shrink-0">

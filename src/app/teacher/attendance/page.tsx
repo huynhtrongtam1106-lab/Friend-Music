@@ -52,7 +52,8 @@ export default async function TeacherAttendancePage(props: {
 
   const rawEnrollments = await prisma.enrollment.findMany({
     where: {
-      teacherId: teacher.id,
+      // GV chính HOẶC GV phụ đều thấy học viên này trong lớp của mình
+      OR: [{ teacherId: teacher.id }, { extraTeachers: { some: { teacherId: teacher.id } } }],
       student: { status: 'ACTIVE', deletedAt: null },
     },
     include: {

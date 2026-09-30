@@ -46,6 +46,7 @@ export default async function StudentsByStatusPage(props: {
         student: true,
         pricingPlan: true,
         teacher: { include: { user: true } },
+        extraTeachers: { include: { teacher: { include: { user: true } } } },
       },
       orderBy: { updatedAt: 'desc' },
     }),

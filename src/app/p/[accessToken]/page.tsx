@@ -13,6 +13,7 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
         include: {
           pricingPlan: true,
           teacher: { include: { user: true } },
+          extraTeachers: { include: { teacher: { include: { user: true } } } },
         },
         orderBy: { startDate: 'desc' },
         take: 1,
@@ -68,7 +69,7 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
               <p className="text-[10px] uppercase tracking-wider font-bold text-indigo-600">Sổ Liên Lạc Điện Tử</p>
               <h1 className="text-xl font-black text-slate-900">{student.fullName}</h1>
               <p className="text-xs text-slate-500 font-medium">
-                Mã HV: <span className="font-mono font-bold text-slate-700">{student.studentCode}</span> • GV: {enrollment.teacher.user.name}
+                Mã HV: <span className="font-mono font-bold text-slate-700">{student.studentCode}</span> • GV: {[enrollment.teacher.user.name, ...enrollment.extraTeachers.map((x) => x.teacher.user.name)].join(', ')}
               </p>
             </div>
             <span className="text-xs font-bold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg">

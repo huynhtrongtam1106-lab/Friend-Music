@@ -26,6 +26,7 @@ export default async function AdminDashboardPage() {
         student: true,
         pricingPlan: true,
         teacher: { include: { user: true } },
+        extraTeachers: { include: { teacher: { include: { user: true } } } },
       },
       orderBy: { remainingSessions: 'asc' },
     }),
@@ -128,7 +129,7 @@ export default async function AdminDashboardPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {teachers.map((t) => {
-              const studentCount = enrollments.filter((e) => e.teacherId === t.id).length;
+              const studentCount = enrollments.filter((e) => e.teacherId === t.id || e.extraTeachers.some((x) => x.teacherId === t.id)).length;
               return (
                 <div key={t.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 relative flex flex-col justify-between">
                   <div className="space-y-1.5">

@@ -11,7 +11,15 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { studentCode, fullName, parentPhone, parentEmail, teacherId, pricingPlanId, note, startDate, scheduleText } = body;
+    const { studentCode, fullName, parentPhone, parentEmail, pricingPlanId, note, startDate, scheduleText } = body;
+
+    // Hỗ trợ nhiều giáo viên: teacherIds[0] là GV chính, còn lại là GV phụ.
+    // Vẫn nhận teacherId đơn để tương thích ngược.
+    const teacherIds: string[] = Array.from(
+      new Set<string>((Array.isArray(body.teacherIds) ? body.teacherIds : [body.teacherId]).filter(Boolean))
+    );
+    const teacherId = teacherIds[0];
+    const extraTeacherIds = teacherIds.slice(1);
 
     if (!studentCode || !fullName || !teacherId || !pricingPlanId) {
       return NextResponse.json({ error: 'Vui lòng nhập đầy đủ Mã HV, Tên, Giáo viên và Gói học!' }, { status: 400 });
@@ -74,10 +82,14 @@ export async function POST(req: Request) {
           paymentStatus: 'UNPAID',
           startDate: parsedStartDate,
           scheduleText: scheduleText?.trim() || null,
+          ...(extraTeacherIds.length > 0
+            ? { extraTeachers: { create: extraTeacherIds.map((id) => ({ teacherId: id })) } }
+            : {}),
         },
         include: {
           pricingPlan: true,
           teacher: { include: { user: true } },
+          extraTeachers: { include: { teacher: { include: { user: true } } } },
         },
       });
 

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import TeacherMultiSelect from '@/components/teacher-multi-select';
 
 export default function EditStudentModal({ 
   enrollment, 
@@ -18,7 +19,10 @@ export default function EditStudentModal({
 
   const [fullName, setFullName] = useState(enrollment.student.fullName || '');
   const [phone, setPhone] = useState(enrollment.student.phone || '');
-  const [teacherId, setTeacherId] = useState(enrollment.teacherId || '');
+  const [teacherIds, setTeacherIds] = useState<string[]>([
+    enrollment.teacherId,
+    ...((enrollment.extraTeachers || []).map((x: any) => x.teacherId)),
+  ].filter(Boolean));
   const [pricingPlanId, setPricingPlanId] = useState(enrollment.pricingPlanId || '');
   const [scheduleText, setScheduleText] = useState(enrollment.scheduleText || '');
   const [status, setStatus] = useState(enrollment.student.status || 'ACTIVE');
@@ -28,6 +32,10 @@ export default function EditStudentModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (teacherIds.length === 0) {
+      alert('Vui lòng chọn ít nhất 1 giáo viên phụ trách!');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -38,7 +46,8 @@ export default function EditStudentModal({
           id: enrollment.student.id, // Truyền kèm ID vào body để file API nhận diện chính xác
           fullName,
           phone,
-          teacherId,
+          teacherId: teacherIds[0],
+          teacherIds,
           pricingPlanId,
           scheduleText,
           status,
@@ -123,16 +132,8 @@ export default function EditStudentModal({
               </div>
 
               <div>
-                <label className="font-bold text-slate-700">Giáo viên phụ trách</label>
-                <select
-                  value={teacherId}
-                  onChange={(e) => setTeacherId(e.target.value)}
-                  className="w-full mt-1 p-2 border border-slate-300 rounded-xl bg-white"
-                >
-                  {teachers.map((t) => (
-                    <option key={t.id} value={t.id}>{t.user.name}</option>
-                  ))}
-                </select>
+                <label className="font-bold text-slate-700 block mb-1">Giáo viên phụ trách (chọn được nhiều thầy)</label>
+                <TeacherMultiSelect teachers={teachers} value={teacherIds} onChange={setTeacherIds} />
               </div>
 
               <div>
