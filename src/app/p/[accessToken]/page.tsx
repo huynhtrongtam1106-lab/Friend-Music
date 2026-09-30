@@ -137,7 +137,10 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
             </div>
           ) : (
             student.sessionLogs.map((log) => {
-              const gradeText = log.grade || 'Chưa kiểm tra';
+              // Bài chưa tới hạn nộp thì luôn hiện "Chưa kiểm tra" (kể cả dữ liệu cũ đã lưu "Đạt")
+              const todayVN = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+              const notDueYet = !!log.dueDate && log.dueDate.toISOString().slice(0, 10) > todayVN;
+              const gradeText = notDueYet ? 'Chưa kiểm tra' : log.grade || 'Chưa kiểm tra';
               return (
                 <div key={log.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3 text-xs">
                   {/* Ngày học & Trạng thái điểm danh */}

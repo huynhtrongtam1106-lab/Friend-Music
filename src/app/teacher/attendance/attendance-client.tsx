@@ -18,7 +18,13 @@ export default function AttendanceClient({
   const [assignment, setAssignment] = useState('');
   const [evaluation, setEvaluation] = useState('Nắm nhịp tốt, bài tập về nhà luyện thêm gam.');
   const [dueDate, setDueDate] = useState('');
-  const [grade, setGrade] = useState('Đạt');
+  const [grade, setGrade] = useState('Chưa kiểm tra');
+
+  // Ngày hôm nay theo giờ Việt Nam (YYYY-MM-DD) để so với hạn nộp bài
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  // Chưa tới hạn nộp bài => chưa thể chấm kết quả, tự khóa ở "Chưa kiểm tra"
+  const notDueYet = !!dueDate && dueDate > todayStr;
+  const effectiveGrade = notDueYet ? 'Chưa kiểm tra' : grade;
   const [loading, setLoading] = useState(false);
 
   // Hàm định dạng ngày tháng sang kiểu Việt Nam (DD/MM/YYYY)
@@ -46,7 +52,7 @@ export default function AttendanceClient({
           assignment, 
           evaluation,
           dueDate,
-          grade
+          grade: effectiveGrade,
         }),
       });
       const data = await res.json();
@@ -61,6 +67,7 @@ export default function AttendanceClient({
         setActiveId(null);
         setAssignment('');
         setDueDate('');
+        setGrade('Chưa kiểm tra');
       } else {
         alert(data.error);
       }
@@ -184,15 +191,19 @@ export default function AttendanceClient({
                         <div>
                           <label className="block text-[11px] font-bold text-slate-600 mb-1">Kết quả / Điểm số</label>
                           <select
-                            value={grade}
+                            value={effectiveGrade}
                             onChange={(e) => setGrade(e.target.value)}
-                            className="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            disabled={notDueYet}
+                            className="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400"
                           >
+                            <option value="Chưa kiểm tra">Chưa kiểm tra</option>
                             <option value="Đạt">Đạt</option>
                             <option value="Tốt">Tốt</option>
                             <option value="Cần cố gắng">Cần cố gắng</option>
-                            <option value="Chưa kiểm tra">Chưa kiểm tra</option>
                           </select>
+                          {notDueYet && (
+                            <p className="text-[10px] text-amber-600 mt-1">Chưa tới hạn nộp bài nên chưa chấm kết quả.</p>
+                          )}
                         </div>
                       </div>
 

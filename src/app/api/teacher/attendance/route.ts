@@ -97,14 +97,17 @@ export async function POST(req: Request) {
       },
     });
 
+    // So sánh theo NGÀY (giờ Việt Nam) để không bị lệch múi giờ
+    const todayVN = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const dueDay = dueDate ? String(dueDate).slice(0, 10) : '';
+
     let assignmentStatus = 'Đang làm';
-    if (dueDate) {
-      const now = new Date();
-      const due = new Date(dueDate);
-      if (now > due) {
-        assignmentStatus = 'Trễ hạn';
-      }
+    if (dueDay && dueDay < todayVN) {
+      assignmentStatus = 'Trễ hạn';
     }
+
+    // Chưa tới hạn nộp bài thì chưa được chấm kết quả
+    const finalGrade = dueDay && dueDay > todayVN ? 'Chưa kiểm tra' : grade || 'Chưa kiểm tra';
 
     // Upsert SessionLog lưu bài tập và nhận xét
     await prisma.sessionLog.upsert({
@@ -116,7 +119,7 @@ export async function POST(req: Request) {
         teacherEvaluation: evaluation || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         status: assignmentStatus,
-        grade: grade || 'Chưa kiểm tra',
+        grade: finalGrade,
         note: note || null,
       },
       create: {
@@ -127,7 +130,7 @@ export async function POST(req: Request) {
         teacherEvaluation: evaluation || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         status: assignmentStatus,
-        grade: grade || 'Chưa kiểm tra',
+        grade: finalGrade,
         note: note || null,
       },
     });
