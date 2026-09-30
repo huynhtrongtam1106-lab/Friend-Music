@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import BrandLogo from '@/components/brand-logo';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +63,11 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
   return (
     <main className="min-h-screen bg-slate-100 p-4 font-sans text-slate-800 pb-12">
       <div className="max-w-md mx-auto space-y-4">
+        {/* Logo trung tâm */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm py-2 flex justify-center">
+          <BrandLogo className="w-56" />
+        </div>
+
         {/* Profile Card */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
           <div className="flex justify-between items-start">

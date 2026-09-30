@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import BrandLogo from '@/components/brand-logo';
 
 export default function AttendanceClient({ 
   teacher, 
@@ -80,8 +81,10 @@ export default function AttendanceClient({
     <main className="min-h-screen bg-slate-50 p-6 font-sans text-slate-800">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header thông tin giáo viên */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-          <div>
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <BrandLogo className="w-24 sm:w-36 shrink-0" />
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-black text-slate-900">Cổng Điểm Danh: {teacher.user.name}</h1>
               {isAdmin && (
@@ -91,6 +94,7 @@ export default function AttendanceClient({
               )}
             </div>
             <p className="text-xs text-slate-500 mt-0.5">Môn dạy: {teacher.specializations.join(', ')}</p>
+          </div>
           </div>
           {isAdmin && (
             <a
