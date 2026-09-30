@@ -2,10 +2,8 @@ import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth';
-import EditStudentModal from '@/components/edit-student-dialog';
-import RestoreStudentButton from '@/components/restore-student-button';
-import { DeleteStudentButton } from '@/components/delete-action-buttons';
-import ShareLinkBtn from '@/components/ShareLinkBtn';
+import StudentListTable from '@/components/student-list-table';
+import StudentStatusNav from '@/components/student-status-nav';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +37,7 @@ export default async function StudentsByStatusPage(props: {
     notFound();
   }
 
-  const [rawPlans, teachers, rawEnrollments] = await Promise.all([
+  const [rawPlans, teachers, rawEnrollments, activeCount, pausedCount, droppedCount] = await Promise.all([
     prisma.pricingPlan.findMany({ orderBy: [{ subject: 'asc' }, { numberOfSessions: 'asc' }] }),
     prisma.teacher.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
     prisma.enrollment.findMany({
@@ -51,6 +49,9 @@ export default async function StudentsByStatusPage(props: {
       },
       orderBy: { updatedAt: 'desc' },
     }),
+    prisma.student.count({ where: { status: 'ACTIVE', deletedAt: null } }),
+    prisma.student.count({ where: { status: 'PAUSED', deletedAt: null } }),
+    prisma.student.count({ where: { status: 'DROPPED', deletedAt: null } }),
   ]);
 
   const plans = rawPlans.map((p) => ({ ...p, price: Number(p.price) }));
@@ -90,66 +91,18 @@ export default async function StudentsByStatusPage(props: {
             </span>
           </div>
 
-          {enrollments.length === 0 ? (
-            <div className="text-center py-10 space-y-2">
-              <p className="text-sm font-bold text-slate-600">{config.emptyText}</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
-              <table className="w-full min-w-[860px] text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-400 uppercase font-semibold">
-                    <th className="py-2.5">Mã HV</th>
-                    <th className="py-2.5">Họ và Tên</th>
-                    <th className="py-2.5">Môn & Gói học</th>
-                    <th className="py-2.5">Giáo viên</th>
-                    <th className="py-2.5 text-center">Đã học / Còn lại</th>
-                    <th className="py-2.5 text-center">Sổ Liên Lạc</th>
-                    <th className="py-2.5 text-center">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {enrollments.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/70 transition">
-                      <td className="py-3 font-mono font-bold text-indigo-600">{item.student.studentCode}</td>
-                      <td className="py-3 font-bold text-slate-900">{item.student.fullName}</td>
-                      <td className="py-3 text-slate-600">
-                        <span className="font-bold text-slate-800">[{item.pricingPlan.subject}]</span> {item.pricingPlan.packageName}
-                      </td>
-                      <td className="py-3 font-medium text-slate-700">{item.teacher.user.name}</td>
-                      <td className="py-3 text-center">
-                        <span className="font-bold text-slate-900">{item.attendedSessions}</span>
-                        <span className="text-slate-400"> / </span>
-                        <span className="font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
-                          Còn {item.remainingSessions}b
-                        </span>
-                      </td>
-                      <td className="py-3 text-center">
-                        <div className="flex justify-center gap-1.5 items-center">
-                          <ShareLinkBtn accessToken={item.student.accessToken} />
-                          <Link
-                            href={`/p/${item.student.accessToken}`}
-                            target="_blank"
-                            className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition text-[11px]"
-                            title="Xem trước sổ liên lạc"
-                          >
-                            👁️
-                          </Link>
-                        </div>
-                      </td>
-                      <td className="py-3 text-center">
-                        <div className="flex items-center justify-center gap-1 flex-wrap">
-                          <RestoreStudentButton studentId={item.student.id} studentName={item.student.fullName} />
-                          <EditStudentModal enrollment={item} plans={plans} teachers={teachers} />
-                          <DeleteStudentButton studentId={item.student.id} studentName={item.student.fullName} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <StudentStatusNav
+            current={status as 'paused' | 'dropped'}
+            counts={{ active: activeCount, paused: pausedCount, dropped: droppedCount }}
+          />
+
+          <StudentListTable
+            variant="status"
+            enrollments={enrollments}
+            plans={plans}
+            teachers={teachers}
+            emptyText={config.emptyText}
+          />
         </div>
       </div>
     </main>

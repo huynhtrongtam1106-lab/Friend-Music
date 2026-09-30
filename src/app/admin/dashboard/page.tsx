@@ -2,12 +2,12 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import AddStudentModal from '@/components/add-student-modal';
 import ActionMenu from '@/components/action-menu';
-import { DeleteStudentButton, DeleteTeacherButton } from '@/components/delete-action-buttons';
+import { DeleteTeacherButton } from '@/components/delete-action-buttons';
 import EditTeacherDialog from '@/components/edit-teacher-dialog';
-import EditStudentModal from '@/components/edit-student-dialog'; // <-- 1. Import component sửa học viên
+import StudentListTable from '@/components/student-list-table';
+import StudentStatusNav from '@/components/student-status-nav';
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth';
-import ShareLinkBtn from '@/components/ShareLinkBtn';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +17,7 @@ export default async function AdminDashboardPage() {
     redirect('/');
   }
 
-  const [rawPlans, teachers, rawEnrollments] = await Promise.all([
+  const [rawPlans, teachers, rawEnrollments, pausedCount, droppedCount] = await Promise.all([
     prisma.pricingPlan.findMany({ orderBy: [{ subject: 'asc' }, { numberOfSessions: 'asc' }] }),
     prisma.teacher.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
     prisma.enrollment.findMany({
@@ -29,6 +29,8 @@ export default async function AdminDashboardPage() {
       },
       orderBy: { remainingSessions: 'asc' },
     }),
+    prisma.student.count({ where: { status: 'PAUSED', deletedAt: null } }),
+    prisma.student.count({ where: { status: 'DROPPED', deletedAt: null } }),
   ]);
 
   const plans = rawPlans.map((p) => ({
@@ -176,7 +178,7 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* Danh Sách Học Viên */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-4">
+        <div id="student-list" className="scroll-mt-4 bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-4">
           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
             <div>
               <h2 className="font-bold text-slate-900 text-base">Danh Sách Học Viên (Sổ Liên Lạc & Tiến Độ)</h2>
@@ -187,82 +189,18 @@ export default async function AdminDashboardPage() {
             </span>
           </div>
 
-          {enrollments.length === 0 ? (
-            <div className="text-center py-10 space-y-2">
-              <p className="text-sm font-bold text-slate-600">Chưa có học viên nào trong hệ thống</p>
-              <p className="text-xs text-slate-400">Bấm nút "Thêm Học Viên Mới" ở trên để tạo hồ sơ đầu tiên.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
-              <table className="w-full min-w-[820px] text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-400 uppercase font-semibold">
-                    <th className="py-2.5">Mã HV</th>
-                    <th className="py-2.5">Họ và Tên</th>
-                    <th className="py-2.5">Môn & Gói học</th>
-                    <th className="py-2.5">Giáo viên</th>
-                    <th className="py-2.5">Lịch học</th>
-                    <th className="py-2.5 text-center">Đã học / Còn lại</th>
-                    <th className="py-2.5 text-right">Học phí</th>
-                    <th className="py-2.5 text-center">Sổ Liên Lạc</th>
-                    <th className="py-2.5 text-center">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {enrollments.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/70 transition">
-                      <td className="py-3 font-mono font-bold text-indigo-600">{item.student.studentCode}</td>
-                      <td className="py-3 font-bold text-slate-900">{item.student.fullName}</td>
-                      <td className="py-3 text-slate-600">
-                        <span className="font-bold text-slate-800">[{item.pricingPlan.subject}]</span> {item.pricingPlan.packageName}
-                      </td>
-                      <td className="py-3 font-medium text-slate-700">{item.teacher.user.name}</td>
-                      
-                      {/* Hiển thị thông tin Lịch học cố định */}
-                      <td className="py-3 font-medium text-slate-600">
-                        {item.scheduleText ? (
-                          <span className="bg-slate-100 px-2 py-1 rounded-md text-slate-800 font-semibold">{item.scheduleText}</span>
-                        ) : (
-                          <span className="text-slate-400 italic">Chưa có</span>
-                        )}
-                      </td>
+          <StudentStatusNav
+            current="active"
+            counts={{ active: enrollments.length, paused: pausedCount, dropped: droppedCount }}
+          />
 
-                      <td className="py-3 text-center">
-                        <span className="font-bold text-slate-900">{item.attendedSessions}</span>
-                        <span className="text-slate-400"> / </span>
-                        <span className={`font-bold px-1.5 py-0.5 rounded ${
-                          item.remainingSessions <= 1 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                          Còn {item.remainingSessions}b
-                        </span>
-                      </td>
-                      <td className="py-3 text-right font-mono font-bold text-slate-900">
-                        {Number(item.tuitionFee).toLocaleString('vi-VN')} đ
-                      </td>
-                      <td className="py-3 text-center flex justify-center gap-1.5 items-center">
-                        <ShareLinkBtn accessToken={item.student.accessToken} />
-                        <Link
-                          href={`/p/${item.student.accessToken}`}
-                          target="_blank"
-                          className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition text-[11px]"
-                          title="Xem trước sổ liên lạc"
-                        >
-                          👁️
-                        </Link>
-                      </td>
-                      <td className="py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          {/* Tích hợp nút Sửa học viên */}
-                          <EditStudentModal enrollment={item} plans={plans} teachers={teachers} />
-                          <DeleteStudentButton studentId={item.student.id} studentName={item.student.fullName} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <StudentListTable
+            variant="active"
+            enrollments={enrollments}
+            plans={plans}
+            teachers={teachers}
+            emptyText='Chưa có học viên nào trong hệ thống. Bấm nút "Thêm Học Viên Mới" ở trên để tạo hồ sơ đầu tiên.'
+          />
         </div>
       </div>
     </main>
