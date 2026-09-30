@@ -4,10 +4,16 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import EditStudentModal from '@/components/edit-student-dialog';
 import RestoreStudentButton from '@/components/restore-student-button';
-import { DeleteStudentButton } from '@/components/delete-action-buttons';
+import ChangeStatusButton from '@/components/change-status-button';
 import ShareLinkBtn from '@/components/ShareLinkBtn';
 
 // Bỏ dấu tiếng Việt + chữ thường để tìm "nguyen" ra được "Nguyễn"
+const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  ACTIVE: { label: 'Đang học', cls: 'bg-emerald-100 text-emerald-800' },
+  PAUSED: { label: '⏸️ Bảo lưu', cls: 'bg-amber-100 text-amber-800' },
+  DROPPED: { label: '🚪 Thôi học', cls: 'bg-slate-200 text-slate-700' },
+};
+
 const normalize = (s: string) =>
   s
     .normalize('NFD')
@@ -91,13 +97,14 @@ export default function StudentListTable({
         </div>
       ) : (
         <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
-          <table className={`w-full text-left text-xs ${isActive ? 'min-w-[820px]' : 'min-w-[860px]'}`}>
+          <table className={`w-full text-left text-xs ${isActive ? 'min-w-[820px]' : 'min-w-[960px]'}`}>
             <thead>
               <tr className="border-b border-slate-200 text-slate-400 uppercase font-semibold">
                 <th className="py-2.5">Mã HV</th>
                 <th className="py-2.5">Họ và Tên</th>
                 <th className="py-2.5">Môn & Gói học</th>
                 <th className="py-2.5">Giáo viên</th>
+                {!isActive && <th className="py-2.5">Trạng thái</th>}
                 {isActive && <th className="py-2.5">Lịch học</th>}
                 <th className="py-2.5 text-center">Đã học / Còn lại</th>
                 {isActive && <th className="py-2.5 text-right">Học phí</th>}
@@ -114,6 +121,13 @@ export default function StudentListTable({
                     <span className="font-bold text-slate-800">[{item.pricingPlan.subject}]</span> {item.pricingPlan.packageName}
                   </td>
                   <td className="py-3 font-medium text-slate-700">{item.teacher.user.name}</td>
+                  {!isActive && (
+                    <td className="py-3">
+                      <span className={`font-bold px-2 py-1 rounded-full text-[11px] whitespace-nowrap ${(STATUS_BADGE[item.student.status] ?? STATUS_BADGE.ACTIVE).cls}`}>
+                        {(STATUS_BADGE[item.student.status] ?? STATUS_BADGE.ACTIVE).label}
+                      </span>
+                    </td>
+                  )}
                   {isActive && (
                     <td className="py-3 font-medium text-slate-600">
                       {item.scheduleText ? (
@@ -162,7 +176,11 @@ export default function StudentListTable({
                         <RestoreStudentButton studentId={item.student.id} studentName={item.student.fullName} />
                       )}
                       <EditStudentModal enrollment={item} plans={plans} teachers={teachers} />
-                      <DeleteStudentButton studentId={item.student.id} studentName={item.student.fullName} />
+                      <ChangeStatusButton
+                        studentId={item.student.id}
+                        studentName={item.student.fullName}
+                        currentStatus={item.student.status}
+                      />
                     </div>
                   </td>
                 </tr>

@@ -118,10 +118,12 @@ export async function PUT(req: Request) {
       where: { id: studentId },
       data: {
         fullName: fullName.trim(),
-        parentPhone: phoneValue?.trim() || null,
-        parentEmail: parentEmail?.trim() || null,
         status: status || 'ACTIVE',
-        note: note?.trim() || null,
+        // Chỉ ghi đè các trường khi client thật sự gửi lên, tránh việc chuyển
+        // trạng thái (Bảo lưu/Thôi học/Khôi phục) vô tình xóa SĐT, email, ghi chú.
+        ...('phone' in body || 'parentPhone' in body ? { parentPhone: phoneValue?.trim() || null } : {}),
+        ...('parentEmail' in body ? { parentEmail: parentEmail?.trim() || null } : {}),
+        ...('note' in body ? { note: note?.trim() || null } : {}),
         ...(parsedStartDate ? { startDate: parsedStartDate } : {}),
       },
     });

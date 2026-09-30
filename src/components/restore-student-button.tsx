@@ -46,7 +46,7 @@ export default function RestoreStudentButton({
       className="px-2 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-xl transition text-[11px]"
       title="Khôi phục về Đang học"
     >
-      {loading ? '...' : '↩️ Đang học'}
+      {loading ? '...' : '↩️ Khôi phục'}
     </button>
   );
 }
