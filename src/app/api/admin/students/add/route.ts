@@ -37,6 +37,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Không tìm thấy thông tin gói học phí!' }, { status: 404 });
     }
 
+    // Số buổi đã học trước khi thêm vào hệ thống (không vượt quá tổng số buổi của gói)
+    const attendedBefore = Math.min(
+      Math.max(parseInt(String(body.attendedSessions ?? 0), 10) || 0, 0),
+      plan.numberOfSessions
+    );
+
     // 2. Sử dụng Transaction để kiểm soát tuyệt đối, chống tạo trùng mã
     const result = await prisma.$transaction(async (tx) => {
       let student = await tx.student.findFirst({
@@ -76,8 +82,8 @@ export async function POST(req: Request) {
           teacherId,
           pricingPlanId: plan.id,
           totalSessions: plan.numberOfSessions,
-          attendedSessions: 0,
-          remainingSessions: plan.numberOfSessions,
+          attendedSessions: attendedBefore,
+          remainingSessions: plan.numberOfSessions - attendedBefore,
           tuitionFee: plan.price,
           paymentStatus: 'UNPAID',
           startDate: parsedStartDate,

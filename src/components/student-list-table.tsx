@@ -5,6 +5,8 @@ import Link from 'next/link';
 import EditStudentModal from '@/components/edit-student-dialog';
 import RestoreStudentButton from '@/components/restore-student-button';
 import ChangeStatusButton from '@/components/change-status-button';
+import GroupPaidButton from '@/components/group-paid-button';
+import { isGroupPlan, getGroupDue, addMonthsStr, formatDayVN, GROUP_REMINDER_DAYS } from '@/lib/tuition';
 import ShareLinkBtn from '@/components/ShareLinkBtn';
 
 // Bỏ dấu tiếng Việt + chữ thường để tìm "nguyen" ra được "Nguyễn"
@@ -163,6 +165,22 @@ export default function StudentListTable({
                     >
                       Còn {item.remainingSessions}b
                     </span>
+                    {isGroupPlan(item.pricingPlan) && (() => {
+                      const due = getGroupDue(item.startDate);
+                      if (!due) return null;
+                      const late = due.daysLeft < 0;
+                      const soon = due.daysLeft <= GROUP_REMINDER_DAYS;
+                      return (
+                        <div
+                          className={`mt-1 text-[10px] font-bold ${
+                            !isActive ? 'text-slate-500' : soon ? 'text-rose-600' : 'text-slate-500'
+                          }`}
+                        >
+                          Hạn đóng: {formatDayVN(due.dueDate)}
+                          {isActive && soon && (late ? ` (quá ${Math.abs(due.daysLeft)} ngày)` : due.daysLeft === 0 ? ' (hôm nay)' : ` (còn ${due.daysLeft} ngày)`)}
+                        </div>
+                      );
+                    })()}
                   </td>
                   {isActive && (
                     <td className="py-3 text-right font-mono font-bold text-slate-900">
@@ -184,6 +202,17 @@ export default function StudentListTable({
                   </td>
                   <td className="py-3 text-center">
                     <div className="flex items-center justify-center gap-1 flex-wrap">
+                      {isActive && isGroupPlan(item.pricingPlan) && (() => {
+                        const due = getGroupDue(item.startDate);
+                        if (!due || due.daysLeft > GROUP_REMINDER_DAYS) return null;
+                        return (
+                          <GroupPaidButton
+                            enrollmentId={item.id}
+                            studentName={item.student.fullName}
+                            nextDueText={formatDayVN(addMonthsStr(due.dueDate, 1))}
+                          />
+                        );
+                      })()}
                       {!isActive && (
                         <RestoreStudentButton studentId={item.student.id} studentName={item.student.fullName} />
                       )}

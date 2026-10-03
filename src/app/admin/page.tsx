@@ -7,6 +7,7 @@ import EditTeacherDialog from '@/components/edit-teacher-dialog';
 import Link from 'next/link';
 import Image from 'next/image';
 import { requireRole } from '@/lib/auth';
+import { needsTuitionReminder } from '@/lib/tuition';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +37,7 @@ export default async function AdminDashboardPage() {
     price: Number(p.price),
   }));
 
-  const dueRenewalCount = enrollments.filter((e) => e.remainingSessions <= 1).length;
+  const dueRenewalCount = enrollments.filter((e) => needsTuitionReminder(e)).length;
 
   return (
     <main className="min-h-screen bg-slate-50 p-6 font-sans text-slate-800">
@@ -88,8 +89,9 @@ export default async function AdminDashboardPage() {
             <p className="text-3xl font-black text-slate-900">{teachers.length}</p>
           </div>
           <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
-            <p className="text-xs font-semibold text-slate-500">Cần thu phí tiếp (≤ 1b)</p>
+            <p className="text-xs font-semibold text-slate-500">Cần thu học phí tiếp</p>
             <p className="text-3xl font-black text-rose-600">{dueRenewalCount}</p>
+            <p className="text-[10px] text-slate-400">Cá nhân ≤ 1 buổi · Nhóm sắp đến hạn</p>
           </div>
         </div>
 

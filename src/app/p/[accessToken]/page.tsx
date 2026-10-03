@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import BrandLogo from '@/components/brand-logo';
+import { getGroupDue, GROUP_REMINDER_DAYS, formatDayVN } from '@/lib/tuition';
 
 export const dynamic = 'force-dynamic';
 
@@ -125,6 +126,16 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
               </div>
             </div>
           )}
+
+          {isGroupClass && (() => {
+            const due = getGroupDue(enrollment.startDate);
+            if (!due || due.daysLeft > GROUP_REMINDER_DAYS) return null;
+            return (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">
+                ⚠️ {due.daysLeft < 0 ? 'Đã quá hạn' : 'Sắp đến hạn'} đóng học phí tháng này (hạn {formatDayVN(due.dueDate)}). Vui lòng liên hệ trung tâm để đóng học phí.
+              </div>
+            );
+          })()}
 
           {!isGroupClass && enrollment.remainingSessions <= 1 && (
             <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">

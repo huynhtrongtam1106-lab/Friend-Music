@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import TeacherMultiSelect from '@/components/teacher-multi-select';
+import { isGroupPlan, GROUP_REMINDER_DAYS } from '@/lib/tuition';
 
 export default function AddStudentModal({ plans, teachers }: { plans: any[]; teachers: any[] }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,6 +20,7 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
   // State mới cho ngày bắt đầu và lịch học thủ công
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [scheduleText, setScheduleText] = useState('');
+  const [attendedBefore, setAttendedBefore] = useState('0');
 
   const getSubjectFromCode = (code: string) => {
     const firstChar = code.trim().charAt(0).toUpperCase();
@@ -31,6 +33,9 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
   };
 
   const detectedSubject = getSubjectFromCode(studentCode);
+  const selectedPlan = plans.find((p) => p.id === selectedPlanId);
+  const isGroup = selectedPlan ? isGroupPlan(selectedPlan) : false;
+  const planTotal = selectedPlan?.numberOfSessions ?? 0;
 
   const filteredPlans = plans.filter((p) => {
     if (!detectedSubject) return true;
@@ -97,6 +102,7 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
           teacherIds: selectedTeacherIds,
           startDate,
           scheduleText,
+          attendedSessions: isGroup ? 0 : Math.max(0, parseInt(attendedBefore, 10) || 0),
         }),
       });
 
@@ -109,6 +115,7 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
       setPhone('');
       setScheduleText('');
       setSelectedTeacherIds([]);
+      setAttendedBefore('0');
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -195,7 +202,9 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Ngày Bắt Đầu Học</label>
+                  <label className="text-xs font-bold text-slate-700">
+                    {isGroup ? 'Ngày Đóng Học Phí Gần Nhất' : 'Ngày Bắt Đầu Học'}
+                  </label>
                   <input
                     type="date"
                     required
@@ -231,6 +240,32 @@ export default function AddStudentModal({ plans, teachers }: { plans: any[]; tea
                   ))}
                 </select>
               </div>
+
+              {isGroup ? (
+                <p className="text-[11px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2">
+                  Lớp nhóm đóng học phí theo tháng: hạn đóng tiếp theo = ngày đóng gần nhất + 1 tháng. Hệ thống sẽ nhắc trước {GROUP_REMINDER_DAYS} ngày.
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">
+                    Số Buổi Đã Học Trước Đó <span className="font-normal text-slate-400">(nếu HV đã học rồi mới thêm vào)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={planTotal || undefined}
+                    value={attendedBefore}
+                    onChange={(e) => setAttendedBefore(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium transition"
+                  />
+                  {planTotal > 0 && (
+                    <p className="text-[10px] text-slate-500">
+                      Gói {planTotal} buổi → còn lại{' '}
+                      <b className="text-slate-700">{Math.max(planTotal - (parseInt(attendedBefore, 10) || 0), 0)}</b> buổi
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700 flex items-center justify-between">

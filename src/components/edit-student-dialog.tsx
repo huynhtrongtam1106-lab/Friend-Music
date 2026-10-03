@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TeacherMultiSelect from '@/components/teacher-multi-select';
+import { isGroupPlan } from '@/lib/tuition';
 
 export default function EditStudentModal({ 
   enrollment, 
@@ -26,9 +27,14 @@ export default function EditStudentModal({
   const [pricingPlanId, setPricingPlanId] = useState(enrollment.pricingPlanId || '');
   const [scheduleText, setScheduleText] = useState(enrollment.scheduleText || '');
   const [status, setStatus] = useState(enrollment.student.status || 'ACTIVE');
+  const [attendedSessions, setAttendedSessions] = useState(String(enrollment.attendedSessions ?? 0));
   const [startDate, setStartDate] = useState(
     enrollment.startDate ? new Date(enrollment.startDate).toISOString().split('T')[0] : ''
   );
+
+  const currentPlan = plans.find((p) => p.id === pricingPlanId) || enrollment.pricingPlan;
+  const isGroup = isGroupPlan(currentPlan);
+  const planTotal = currentPlan?.numberOfSessions ?? enrollment.totalSessions;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +59,7 @@ export default function EditStudentModal({
           status,
           enrollmentId: enrollment.id,
           startDate,
+          attendedSessions: Math.max(0, parseInt(attendedSessions, 10) || 0),
         }),
       });
 
@@ -109,7 +116,7 @@ export default function EditStudentModal({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="font-bold text-slate-700">Ngày bắt đầu học</label>
+                  <label className="font-bold text-slate-700">{isGroup ? 'Ngày đóng học phí gần nhất' : 'Ngày bắt đầu học'}</label>
                   <input
                     type="date"
                     value={startDate}
@@ -147,6 +154,23 @@ export default function EditStudentModal({
                     <option key={p.id} value={p.id}>[{p.subject}] {p.packageName} ({Number(p.price).toLocaleString()}đ)</option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700">
+                  Số buổi đã học <span className="font-normal text-slate-400">(tối đa {planTotal})</span>
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={planTotal}
+                  value={attendedSessions}
+                  onChange={(e) => setAttendedSessions(e.target.value)}
+                  className="w-full mt-1 p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Còn lại: <b>{Math.max(planTotal - (parseInt(attendedSessions, 10) || 0), 0)}</b> buổi
+                </p>
               </div>
 
               <div>

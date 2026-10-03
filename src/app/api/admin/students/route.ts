@@ -155,6 +155,21 @@ export async function PUT(req: Request) {
         }
       }
 
+      // Đồng bộ số buổi: tổng buổi (theo gói) - số buổi đã học = số buổi còn lại
+      const current = await prisma.enrollment.findUnique({
+        where: { id: enrollmentId },
+        select: { totalSessions: true, attendedSessions: true },
+      });
+      if (current) {
+        const total = updateData.totalSessions ?? current.totalSessions;
+        const hasAttended = body.attendedSessions !== undefined && body.attendedSessions !== null && body.attendedSessions !== '';
+        const attended = hasAttended
+          ? Math.min(Math.max(parseInt(String(body.attendedSessions), 10) || 0, 0), total)
+          : Math.min(current.attendedSessions, total);
+        updateData.attendedSessions = attended;
+        updateData.remainingSessions = Math.max(total - attended, 0);
+      }
+
       // Nhiều giáo viên: teacherIds[0] = GV chính, phần còn lại = GV phụ
       const teacherIds: string[] = Array.isArray(body.teacherIds)
         ? Array.from(new Set<string>(body.teacherIds.filter(Boolean)))
