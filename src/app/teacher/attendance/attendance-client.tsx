@@ -19,14 +19,65 @@ export default function AttendanceClient({
   const [assignment, setAssignment] = useState('');
   const [evaluation, setEvaluation] = useState('Nắm nhịp tốt, bài tập về nhà luyện thêm gam.');
   const [dueDate, setDueDate] = useState('');
-  const [grade, setGrade] = useState('Chưa kiểm tra');
 
   // Ngày hôm nay theo giờ Việt Nam (YYYY-MM-DD) để so với hạn nộp bài
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
-  // Chưa tới hạn nộp bài => chưa thể chấm kết quả, tự khóa ở "Chưa kiểm tra"
-  const notDueYet = !!dueDate && dueDate > todayStr;
-  const effectiveGrade = notDueYet ? 'Chưa kiểm tra' : grade;
   const [loading, setLoading] = useState(false);
+
+  // State sửa bài tập đã giao
+  const [editLogId, setEditLogId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ assignment: '', dueDate: '', status: 'Đang làm', grade: 'Chưa kiểm tra' });
+
+  const toInputDate = (d: any) => (d ? new Date(d).toISOString().slice(0, 10) : '');
+
+  // Chỉ được chấm điểm khi bài "Đã xong" hoặc đã tới hạn nộp
+  const canGrade = (status: string, due: string) => status === 'Đã xong' || !due || due <= todayStr;
+
+  // Bài "Đang làm" mà quá hạn thì hiển thị là "Trễ hạn"
+  const displayStatus = (log: any) =>
+    log.status === 'Đang làm' && log.dueDate && toInputDate(log.dueDate) < todayStr ? 'Trễ hạn' : log.status;
+
+  const mergeLog = (studentId: string, log: any) =>
+    setList((prev) =>
+      prev.map((it) => {
+        if (it.student.id !== studentId) return it;
+        const logs = it.student.sessionLogs || [];
+        const exists = logs.some((l: any) => l.id === log.id);
+        const next = exists ? logs.map((l: any) => (l.id === log.id ? { ...l, ...log } : l)) : [log, ...logs];
+        return { ...it, student: { ...it.student, sessionLogs: next } };
+      })
+    );
+
+  const startEdit = (log: any) => {
+    setEditLogId(log.id);
+    setEditForm({
+      assignment: log.assignment || '',
+      dueDate: toInputDate(log.dueDate),
+      status: displayStatus(log),
+      grade: log.grade || 'Chưa kiểm tra',
+    });
+  };
+
+  const handleSaveLog = async (studentId: string) => {
+    if (!editLogId) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/teacher/attendance', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionLogId: editLogId, ...editForm }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        mergeLog(studentId, data.sessionLog);
+        setEditLogId(null);
+      } else {
+        alert(data.error);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Hàm định dạng ngày tháng sang kiểu Việt Nam (DD/MM/YYYY)
   const formatDate = (dateString: string | null) => {
@@ -53,7 +104,6 @@ export default function AttendanceClient({
           assignment, 
           evaluation,
           dueDate,
-          grade: effectiveGrade,
         }),
       });
       const data = await res.json();
@@ -61,14 +111,15 @@ export default function AttendanceClient({
         setList((prev) =>
           prev.map((item) =>
             item.id === enrollmentId
-              ? { ...item, remainingSessions: data.remaining, attendedSessions: item.attendedSessions + 1 }
+              ? { ...item, remainingSessions: data.remaining, attendedSessions: data.attended }
               : item
           )
         );
+        const target = list.find((it) => it.id === enrollmentId);
+        if (target && data.sessionLog) mergeLog(target.student.id, data.sessionLog);
         setActiveId(null);
         setAssignment('');
         setDueDate('');
-        setGrade('Chưa kiểm tra');
       } else {
         alert(data.error);
       }
@@ -169,6 +220,102 @@ export default function AttendanceClient({
                     </div>
                   </div>
 
+                  {/* Bài tập đã giao: sửa trạng thái / chấm điểm */}
+                  {(item.student.sessionLogs || []).filter((l: any) => l.assignment).length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-bold text-slate-600">Bài tập đã giao</p>
+                      {(item.student.sessionLogs || []).filter((l: any) => l.assignment).map((log: any) => (
+                        <div key={log.id} className="bg-white border border-slate-200 rounded-xl p-3 text-[11px] space-y-2">
+                          {editLogId === log.id ? (
+                            <>
+                              <input
+                                type="text"
+                                value={editForm.assignment}
+                                onChange={(e) => setEditForm({ ...editForm, assignment: e.target.value })}
+                                className="w-full text-xs p-2 border border-slate-200 rounded-lg"
+                              />
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <input
+                                  type="date"
+                                  value={editForm.dueDate}
+                                  onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
+                                  className="text-xs p-2 border border-slate-200 rounded-lg"
+                                />
+                                <select
+                                  value={editForm.status}
+                                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                                  className="text-xs p-2 border border-slate-200 rounded-lg"
+                                >
+                                  <option value="Đang làm">Đang làm</option>
+                                  <option value="Đã xong">Đã xong</option>
+                                  <option value="Trễ hạn">Trễ hạn</option>
+                                </select>
+                                <select
+                                  value={editForm.grade}
+                                  disabled={!canGrade(editForm.status, editForm.dueDate)}
+                                  onChange={(e) => setEditForm({ ...editForm, grade: e.target.value })}
+                                  className="text-xs p-2 border border-slate-200 rounded-lg disabled:bg-slate-100 disabled:text-slate-400"
+                                >
+                                  <option value="Chưa kiểm tra">Chưa kiểm tra</option>
+                                  <option value="Đạt">Đạt</option>
+                                  <option value="Tốt">Tốt</option>
+                                  <option value="Cần cố gắng">Cần cố gắng</option>
+                                  <option value="Không đạt">Không đạt</option>
+                                </select>
+                              </div>
+                              {!canGrade(editForm.status, editForm.dueDate) && (
+                                <p className="text-[10px] text-amber-600">
+                                  Chưa tới hạn nộp. Chọn trạng thái “Đã xong” nếu học viên đã hoàn thành sớm để chấm điểm.
+                                </p>
+                              )}
+                              <div className="flex gap-2">
+                                <button
+                                  disabled={loading}
+                                  onClick={() => handleSaveLog(item.student.id)}
+                                  className="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-lg cursor-pointer"
+                                >
+                                  Lưu thay đổi
+                                </button>
+                                <button
+                                  onClick={() => setEditLogId(null)}
+                                  className="px-3 py-1.5 bg-white border border-slate-200 text-slate-500 font-bold rounded-lg cursor-pointer"
+                                >
+                                  Hủy
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="space-y-0.5">
+                                <p className="font-bold text-slate-800">{log.assignment}</p>
+                                <p className="text-slate-500">
+                                  Buổi {formatDate(log.lessonDate)} • Hạn: {formatDate(log.dueDate)} • Điểm: {log.grade || 'Chưa kiểm tra'}
+                                </p>
+                                <span
+                                  className={`inline-block font-bold px-1.5 py-0.5 rounded ${
+                                    displayStatus(log) === 'Đã xong'
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : displayStatus(log) === 'Trễ hạn'
+                                      ? 'bg-rose-100 text-rose-700'
+                                      : 'bg-amber-100 text-amber-700'
+                                  }`}
+                                >
+                                  {displayStatus(log)}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => startEdit(log)}
+                                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg cursor-pointer"
+                              >
+                                Sửa
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {activeId === item.id ? (
                     <div className="pt-2 border-t border-slate-200 space-y-3">
                       <div>
@@ -182,33 +329,17 @@ export default function AttendanceClient({
                         />
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Hạn nộp bài</label>
-                          <input
-                            type="date"
-                            value={dueDate}
-                            onChange={(e) => setDueDate(e.target.value)}
-                            className="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Kết quả / Điểm số</label>
-                          <select
-                            value={effectiveGrade}
-                            onChange={(e) => setGrade(e.target.value)}
-                            disabled={notDueYet}
-                            className="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400"
-                          >
-                            <option value="Chưa kiểm tra">Chưa kiểm tra</option>
-                            <option value="Đạt">Đạt</option>
-                            <option value="Tốt">Tốt</option>
-                            <option value="Cần cố gắng">Cần cố gắng</option>
-                          </select>
-                          {notDueYet && (
-                            <p className="text-[10px] text-amber-600 mt-1">Chưa tới hạn nộp bài nên chưa chấm kết quả.</p>
-                          )}
-                        </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Hạn nộp bài</label>
+                        <input
+                          type="date"
+                          value={dueDate}
+                          onChange={(e) => setDueDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Bài mới ở trạng thái “Chưa kiểm tra”. Chấm điểm / đổi trạng thái tại mục “Bài tập đã giao”.
+                        </p>
                       </div>
 
                       <div>

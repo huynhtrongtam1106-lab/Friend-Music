@@ -156,8 +156,15 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
             student.sessionLogs.map((log) => {
               // Bài chưa tới hạn nộp thì luôn hiện "Chưa kiểm tra" (kể cả dữ liệu cũ đã lưu "Đạt")
               const todayVN = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
-              const notDueYet = !!log.dueDate && log.dueDate.toISOString().slice(0, 10) > todayVN;
+              const isDone = log.status === 'Đã xong';
+              // Bài đã "Đã xong" thì không bị khóa theo hạn nộp nữa
+              const notDueYet = !isDone && !!log.dueDate && log.dueDate.toISOString().slice(0, 10) > todayVN;
               const gradeText = notDueYet ? 'Chưa kiểm tra' : log.grade || 'Chưa kiểm tra';
+              // Bài "Đang làm" mà quá hạn thì hiển thị "Trễ hạn"
+              const statusText =
+                log.status === 'Đang làm' && log.dueDate && log.dueDate.toISOString().slice(0, 10) < todayVN
+                  ? 'Trễ hạn'
+                  : log.status;
               return (
                 <div key={log.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3 text-xs">
                   {/* Ngày học & Trạng thái điểm danh */}
@@ -184,10 +191,10 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
                         <div>
                           <span className="text-slate-400">Trạng thái:</span>{' '}
                           <span className={`font-bold px-1.5 py-0.5 rounded ${
-                            log.status === 'Đã xong' ? 'bg-emerald-100 text-emerald-700' :
-                            log.status === 'Trễ hạn' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                            statusText === 'Đã xong' ? 'bg-emerald-100 text-emerald-700' :
+                            statusText === 'Trễ hạn' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
                           }`}>
-                            {log.status}
+                            {statusText}
                           </span>
                         </div>
                       </div>
@@ -204,7 +211,11 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
                         ? 'bg-rose-50 text-rose-700 border border-rose-200' 
                         : 'bg-amber-50 text-amber-800 border border-amber-200'
                     }`}>
-                      {gradeText === 'Chưa kiểm tra' ? 'Đang luyện tập (Chưa kiểm tra)' : gradeText}
+                      {gradeText === 'Chưa kiểm tra'
+                        ? isDone
+                          ? 'Đã nộp bài - chờ Thầy/Cô chấm'
+                          : 'Đang luyện tập (Chưa kiểm tra)'
+                        : gradeText}
                     </span>
                   </div>
 
