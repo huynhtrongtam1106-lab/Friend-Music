@@ -5,6 +5,35 @@ import { getGroupDue, GROUP_REMINDER_DAYS, formatDayVN } from '@/lib/tuition';
 
 export const dynamic = 'force-dynamic';
 
+// Biến các đường dẫn http/https trong văn bản thành link bấm được (mở tab mới)
+function Linkify({ text }: { text: string }) {
+  const parts = text.split(/(https?:\/\/[^\s]+)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (!/^https?:\/\//.test(part)) return <span key={i}>{part}</span>;
+        // Không đưa dấu câu cuối câu vào link
+        const m = part.match(/^(.*?)([.,;:!?)\]]*)$/);
+        const url = m ? m[1] : part;
+        const tail = m ? m[2] : '';
+        return (
+          <span key={i}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 underline underline-offset-2 break-all font-semibold"
+            >
+              {url}
+            </a>
+            {tail}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 export default async function ParentPortalPage({ params }: { params: Promise<{ accessToken: string }> }) {
   const { accessToken } = await params;
 
@@ -182,7 +211,7 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
                   {/* Thông tin Bài tập & Thời hạn */}
                   {log.assignment && (
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1.5">
-                      <p className="font-bold text-slate-800">Bài tập: <span className="font-normal text-slate-600">{log.assignment}</span></p>
+                      <p className="font-bold text-slate-800">Bài tập: <span className="font-normal text-slate-600 break-words"><Linkify text={log.assignment} /></span></p>
                       <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
                         <div>
                           <span className="text-slate-400">Hạn nộp (Deadline):</span>{' '}
@@ -223,7 +252,7 @@ export default async function ParentPortalPage({ params }: { params: Promise<{ a
                   {log.teacherEvaluation && (
                     <div className="p-2.5 bg-amber-50/70 border border-amber-200/60 rounded-xl">
                       <p className="font-bold text-amber-800">Nhận xét của Thầy/Cô:</p>
-                      <p className="text-amber-950 mt-0.5 italic">"{log.teacherEvaluation}"</p>
+                      <p className="text-amber-950 mt-0.5 italic break-words">"<Linkify text={log.teacherEvaluation} />"</p>
                     </div>
                   )}
 
