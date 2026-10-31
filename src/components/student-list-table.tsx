@@ -1,12 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import EditStudentModal from '@/components/edit-student-dialog';
 import RestoreStudentButton from '@/components/restore-student-button';
 import ChangeStatusButton from '@/components/change-status-button';
 import GroupPaidButton from '@/components/group-paid-button';
-import { isGroupPlan, getGroupDue, addMonthsStr, formatDayVN, GROUP_REMINDER_DAYS } from '@/lib/tuition';
+import { isGroupPlan, getGroupDue, addMonthsStr, formatDayVN, needsTuitionReminder, GROUP_REMINDER_DAYS } from '@/lib/tuition';
+
+const PAGE_SIZE = 15; // số học viên mỗi trang
 import ShareLinkBtn from '@/components/ShareLinkBtn';
 
 // Bỏ dấu tiếng Việt + chữ thường để tìm "nguyen" ra được "Nguyễn"
@@ -36,20 +38,48 @@ export default function StudentListTable({
   teachers,
   variant,
   emptyText,
+  initialQuery = '',
+  initialSubject = '',
+  initialOnlyDue = false,
 }: {
   enrollments: any[];
   plans: any[];
   teachers: any[];
   variant: 'active' | 'status';
   emptyText?: string;
+  initialQuery?: string;
+  initialSubject?: string;
+  initialOnlyDue?: boolean;
 }) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
+  const [subject, setSubject] = useState(initialSubject);
+  const [teacherFilter, setTeacherFilter] = useState('');
+  const [onlyDue, setOnlyDue] = useState(initialOnlyDue);
+  const [page, setPage] = useState(1);
   const isActive = variant === 'active';
+
+  // Danh sách môn và giáo viên có trong dữ liệu để làm bộ lọc
+  const subjects = useMemo(() => {
+    const map = new Map<string, number>();
+    enrollments.forEach((e) => map.set(e.pricingPlan.subject, (map.get(e.pricingPlan.subject) || 0) + 1));
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], 'vi'));
+  }, [enrollments]);
+  const teacherOptions = useMemo(
+    () => Array.from(new Set(enrollments.flatMap((e) => teacherNames(e)))).sort((a, b) => a.localeCompare(b, 'vi')),
+    [enrollments]
+  );
+  const dueCount = useMemo(() => enrollments.filter((e) => needsTuitionReminder(e)).length, [enrollments]);
 
   const filtered = useMemo(() => {
     const q = normalize(query);
-    if (!q) return enrollments;
-    return enrollments.filter((e) =>
+    const base = enrollments.filter(
+      (e) =>
+        (!subject || e.pricingPlan.subject === subject) &&
+        (!teacherFilter || teacherNames(e).includes(teacherFilter)) &&
+        (!onlyDue || needsTuitionReminder(e))
+    );
+    if (!q) return base;
+    return base.filter((e) =>
       normalize(
         [
           e.student.studentCode,
@@ -64,7 +94,24 @@ export default function StudentListTable({
           .join(' ')
       ).includes(q)
     );
-  }, [enrollments, query]);
+  }, [enrollments, query, subject, teacherFilter, onlyDue]);
+
+  const hasFilter = !!(query || subject || teacherFilter || onlyDue);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Đổi bộ lọc thì quay về trang 1
+  useEffect(() => {
+    setPage(1);
+  }, [query, subject, teacherFilter, onlyDue]);
+
+  const resetFilters = () => {
+    setQuery('');
+    setSubject('');
+    setTeacherFilter('');
+    setOnlyDue(false);
+  };
 
   return (
     <div className="space-y-4">
@@ -88,7 +135,63 @@ export default function StudentListTable({
           </button>
         )}
       </div>
-      {query && (
+      {enrollments.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSubject('')}
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-full border transition ${
+                !subject ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              Tất cả môn ({enrollments.length})
+            </button>
+            {subjects.map(([name, count]) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setSubject(subject === name ? '' : name)}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-full border transition ${
+                  subject === name ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {name} ({count})
+              </button>
+            ))}
+          </div>
+          <select
+            value={teacherFilter}
+            onChange={(e) => setTeacherFilter(e.target.value)}
+            className="text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-full px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            aria-label="Lọc theo giáo viên"
+          >
+            <option value="">Tất cả giáo viên</option>
+            {teacherOptions.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          {isActive && (
+            <button
+              type="button"
+              onClick={() => setOnlyDue(!onlyDue)}
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-full border transition ${
+                onlyDue ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-rose-600 border-rose-200 hover:bg-rose-50'
+              }`}
+            >
+              Cần thu học phí ({dueCount})
+            </button>
+          )}
+          {hasFilter && (
+            <button type="button" onClick={resetFilters} className="text-[11px] font-bold text-slate-500 hover:text-slate-800 underline">
+              Xóa bộ lọc
+            </button>
+          )}
+        </div>
+      )}
+      {hasFilter && (
         <p className="text-[11px] text-slate-500">
           Tìm thấy <b>{filtered.length}</b> / {enrollments.length} học viên
         </p>
@@ -100,15 +203,14 @@ export default function StudentListTable({
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-10">
-          <p className="text-sm font-bold text-slate-600">Không có học viên nào khớp &quot;{query}&quot;</p>
+          <p className="text-sm font-bold text-slate-600">Không có học viên nào khớp bộ lọc hiện tại</p>
         </div>
       ) : (
         <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
-          <table className={`w-full text-left text-xs ${isActive ? 'min-w-[820px]' : 'min-w-[960px]'}`}>
+          <table className={`w-full text-left text-xs ${isActive ? 'min-w-[760px]' : 'min-w-[900px]'}`}>
             <thead>
               <tr className="border-b border-slate-200 text-slate-400 uppercase font-semibold">
-                <th className="py-2.5">Mã HV</th>
-                <th className="py-2.5">Họ và Tên</th>
+                <th className="py-2.5">Học viên</th>
                 <th className="py-2.5">Môn & Gói học</th>
                 <th className="py-2.5">Giáo viên</th>
                 {!isActive && <th className="py-2.5">Trạng thái</th>}
@@ -120,10 +222,12 @@ export default function StudentListTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((item) => (
+              {pageItems.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/70 transition">
-                  <td className="py-3 font-mono font-bold text-indigo-600">{item.student.studentCode}</td>
-                  <td className="py-3 font-bold text-slate-900">{item.student.fullName}</td>
+                  <td className="py-3">
+                    <div className="font-bold text-slate-900">{item.student.fullName}</div>
+                    <div className="font-mono text-[10px] font-bold text-indigo-600">{item.student.studentCode}</div>
+                  </td>
                   <td className="py-3 text-slate-600">
                     <span className="font-bold text-slate-800">[{item.pricingPlan.subject}]</span> {item.pricingPlan.packageName}
                   </td>
@@ -228,6 +332,35 @@ export default function StudentListTable({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {filtered.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <span className="text-[11px] text-slate-500">
+            Hiển thị {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} / {filtered.length}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              disabled={currentPage === 1}
+              onClick={() => setPage(currentPage - 1)}
+              className="px-3 py-1.5 text-[11px] font-bold rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Trước
+            </button>
+            <span className="text-[11px] font-bold text-slate-700 px-1">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={currentPage === totalPages}
+              onClick={() => setPage(currentPage + 1)}
+              className="px-3 py-1.5 text-[11px] font-bold rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Sau →
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -4,11 +4,11 @@ import AddStudentModal from '@/components/add-student-modal';
 import ActionMenu from '@/components/action-menu';
 import { DeleteTeacherButton } from '@/components/delete-action-buttons';
 import EditTeacherDialog from '@/components/edit-teacher-dialog';
-import StudentListTable from '@/components/student-list-table';
+import GroupPaidButton from '@/components/group-paid-button';
 import StudentStatusNav from '@/components/student-status-nav';
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth';
-import { needsTuitionReminder } from '@/lib/tuition';
+import { needsTuitionReminder, isGroupPlan, getGroupDue, addMonthsStr, formatDayVN, GROUP_REMINDER_DAYS } from '@/lib/tuition';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +55,15 @@ export default async function AdminDashboardPage() {
     },
   }));
 
-  const dueRenewalCount = enrollments.filter((e) => needsTuitionReminder(e)).length;
+  const dueList = enrollments.filter((e) => needsTuitionReminder(e));
+  const dueRenewalCount = dueList.length;
+  const DUE_PREVIEW = 6; // Dashboard chỉ hiện nhanh số học viên cần chú ý, còn lại xem ở trang riêng
+  const duePreview = dueList.slice(0, DUE_PREVIEW);
+
+  // Thống kê số học viên theo môn để bấm vào là mở trang danh sách đã lọc sẵn
+  const subjectMap = new Map<string, number>();
+  enrollments.forEach((e) => subjectMap.set(e.pricingPlan.subject, (subjectMap.get(e.pricingPlan.subject) || 0) + 1));
+  const subjectCounts: [string, number][] = Array.from(subjectMap.entries()).sort((a, b) => b[1] - a[1]);
 
   return (
     <main className="min-h-screen w-full overflow-x-hidden bg-slate-50 p-4 sm:p-6 font-sans text-slate-800">
@@ -180,30 +188,107 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Danh Sách Học Viên */}
+        {/* Học viên: gọn trên Dashboard, danh sách đầy đủ ở trang riêng */}
         <div id="student-list" className="scroll-mt-4 bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-4">
-          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div className="flex flex-wrap justify-between items-center gap-3 border-b border-slate-100 pb-3">
             <div>
-              <h2 className="font-bold text-slate-900 text-base">Danh Sách Học Viên (Sổ Liên Lạc & Tiến Độ)</h2>
+              <h2 className="font-bold text-slate-900 text-base">Học Viên</h2>
               <p className="text-xs text-slate-400">Đồng bộ tức thì giữa Giáo viên, Quản trị và Phụ huynh</p>
             </div>
-            <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">
-              {enrollments.length} học viên
-            </span>
+            <Link
+              href="/admin/students/active"
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition whitespace-nowrap"
+            >
+              Xem tất cả {enrollments.length} học viên →
+            </Link>
           </div>
 
           <StudentStatusNav
-            current="active"
             counts={{ active: enrollments.length, paused: pausedCount, dropped: droppedCount }}
           />
 
-          <StudentListTable
-            variant="active"
-            enrollments={enrollments}
-            plans={plans}
-            teachers={teachers}
-            emptyText='Chưa có học viên nào trong hệ thống. Bấm nút "Thêm Học Viên Mới" ở trên để tạo hồ sơ đầu tiên.'
-          />
+          {subjectCounts.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-bold text-slate-400 mr-1">Theo môn:</span>
+              {subjectCounts.map(([name, count]) => (
+                <Link
+                  key={name}
+                  href={`/admin/students/active?subject=${encodeURIComponent(name)}`}
+                  className="px-2.5 py-1 text-[11px] font-bold rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition"
+                >
+                  {name} <span className="text-slate-400">{count}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-700">Cần thu học phí / sắp hết buổi</h3>
+              {dueRenewalCount > DUE_PREVIEW && (
+                <Link href="/admin/students/active?due=1" className="text-[11px] font-bold text-indigo-600 hover:underline">
+                  Xem cả {dueRenewalCount} học viên →
+                </Link>
+              )}
+            </div>
+
+            {duePreview.length === 0 ? (
+              <p className="text-xs text-slate-400 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
+                Hiện chưa có học viên nào cần thu học phí.
+              </p>
+            ) : (
+              <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                {duePreview.map((e) => {
+                  const group = isGroupPlan(e.pricingPlan);
+                  const due = group ? getGroupDue(e.startDate) : null;
+                  return (
+                    <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-white">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">
+                          {e.student.fullName}{' '}
+                          <span className="font-mono text-[10px] text-indigo-600">{e.student.studentCode}</span>
+                        </p>
+                        <p className="text-[11px] text-slate-500 truncate">
+                          [{e.pricingPlan.subject}] {e.pricingPlan.packageName}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {due ? (
+                          <span className="text-[11px] font-bold text-rose-600 whitespace-nowrap">
+                            Hạn đóng {formatDayVN(due.dueDate)}
+                            {due.daysLeft < 0
+                              ? ` (quá ${Math.abs(due.daysLeft)} ngày)`
+                              : due.daysLeft === 0
+                              ? ' (hôm nay)'
+                              : due.daysLeft <= GROUP_REMINDER_DAYS
+                              ? ` (còn ${due.daysLeft} ngày)`
+                              : ''}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded whitespace-nowrap">
+                            Còn {e.remainingSessions} buổi
+                          </span>
+                        )}
+                        {due && (
+                          <GroupPaidButton
+                            enrollmentId={e.id}
+                            studentName={e.student.fullName}
+                            nextDueText={formatDayVN(addMonthsStr(due.dueDate, 1))}
+                          />
+                        )}
+                        <Link
+                          href={`/admin/students/active?q=${encodeURIComponent(e.student.studentCode)}`}
+                          className="px-2.5 py-1 text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
+                        >
+                          Xem
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </main>

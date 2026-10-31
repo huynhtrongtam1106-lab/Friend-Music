@@ -8,16 +8,28 @@ import StudentStatusNav from '@/components/student-status-nav';
 export const dynamic = 'force-dynamic';
 
 // URL "paused" | "dropped" ánh xạ sang giá trị StudentStatus trong Prisma
-const STATUS_MAP: Record<string, { value: 'PAUSED' | 'DROPPED'; title: string; badge: string; emptyText: string }> = {
+const STATUS_MAP: Record<
+  string,
+  { value: 'ACTIVE' | 'PAUSED' | 'DROPPED'; title: string; subtitle: string; badge: string; emptyText: string }
+> = {
+  active: {
+    value: 'ACTIVE',
+    title: 'Danh Sách Học Viên Đang Học',
+    subtitle: 'Toàn bộ học viên đang học. Dùng ô tìm kiếm và bộ lọc để tìm nhanh theo môn, giáo viên hoặc học phí.',
+    badge: 'bg-emerald-100 text-emerald-800',
+    emptyText: 'Chưa có học viên nào đang học. Quay lại Dashboard và bấm "Thêm Học Viên Mới" để tạo hồ sơ đầu tiên.',
+  },
   paused: {
     value: 'PAUSED',
     title: 'Danh Sách Học Viên Đã Bảo Lưu',
+    subtitle: 'Học viên ở đây đã bị chuyển trạng thái từ mục Sửa Học Viên nên không còn hiển thị ở Dashboard chính',
     badge: 'bg-amber-100 text-amber-800',
     emptyText: 'Hiện chưa có học viên nào đang bảo lưu.',
   },
   dropped: {
     value: 'DROPPED',
     title: 'Danh Sách Học Viên Đã Thôi Học',
+    subtitle: 'Học viên ở đây đã bị chuyển trạng thái từ mục Sửa Học Viên nên không còn hiển thị ở Dashboard chính',
     badge: 'bg-rose-100 text-rose-800',
     emptyText: 'Hiện chưa có học viên nào đã thôi học.',
   },
@@ -25,6 +37,7 @@ const STATUS_MAP: Record<string, { value: 'PAUSED' | 'DROPPED'; title: string; b
 
 export default async function StudentsByStatusPage(props: {
   params: Promise<{ status: string }>;
+  searchParams: Promise<{ q?: string; subject?: string; due?: string }>;
 }) {
   const user = await requireRole(['ADMIN']);
   if (!user) {
@@ -32,6 +45,7 @@ export default async function StudentsByStatusPage(props: {
   }
 
   const { status } = await props.params;
+  const sp = await props.searchParams;
   const config = STATUS_MAP[status];
   if (!config) {
     notFound();
@@ -48,7 +62,8 @@ export default async function StudentsByStatusPage(props: {
         teacher: { include: { user: true } },
         extraTeachers: { include: { teacher: { include: { user: true } } } },
       },
-      orderBy: { updatedAt: 'desc' },
+      // Đang học: ai sắp hết buổi xếp trước. Bảo lưu / thôi học: mới cập nhật xếp trước
+      orderBy: config.value === 'ACTIVE' ? { remainingSessions: 'asc' } : { updatedAt: 'desc' },
     }),
     prisma.student.count({ where: { status: 'ACTIVE', deletedAt: null } }),
     prisma.student.count({ where: { status: 'PAUSED', deletedAt: null } }),
@@ -72,9 +87,7 @@ export default async function StudentsByStatusPage(props: {
         <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-lg sm:text-xl font-black text-slate-900">{config.title}</h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Học viên ở đây đã bị chuyển trạng thái từ mục Sửa Học Viên nên không còn hiển thị ở Dashboard chính
-            </p>
+            <p className="text-xs text-slate-500 mt-0.5">{config.subtitle}</p>
           </div>
           <Link
             href="/admin/dashboard"
@@ -93,16 +106,19 @@ export default async function StudentsByStatusPage(props: {
           </div>
 
           <StudentStatusNav
-            current={status as 'paused' | 'dropped'}
+            current={status as 'active' | 'paused' | 'dropped'}
             counts={{ active: activeCount, paused: pausedCount, dropped: droppedCount }}
           />
 
           <StudentListTable
-            variant="status"
+            variant={config.value === 'ACTIVE' ? 'active' : 'status'}
             enrollments={enrollments}
             plans={plans}
             teachers={teachers}
             emptyText={config.emptyText}
+            initialQuery={sp.q ?? ''}
+            initialSubject={sp.subject ?? ''}
+            initialOnlyDue={sp.due === '1'}
           />
         </div>
       </div>

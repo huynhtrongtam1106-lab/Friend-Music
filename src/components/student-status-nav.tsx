@@ -3,7 +3,7 @@ import Link from 'next/link';
 type Tab = 'active' | 'paused' | 'dropped';
 
 const TABS: { key: Tab; href: string; label: string; icon: string; on: string }[] = [
-  { key: 'active', href: '/admin/dashboard#student-list', label: 'Danh Sách HV', icon: '📋', on: 'bg-indigo-600 text-white border-indigo-600' },
+  { key: 'active', href: '/admin/students/active', label: 'Danh Sách HV', icon: '📋', on: 'bg-indigo-600 text-white border-indigo-600' },
   { key: 'paused', href: '/admin/students/paused', label: 'HV Bảo Lưu', icon: '⏸️', on: 'bg-amber-500 text-white border-amber-500' },
   { key: 'dropped', href: '/admin/students/dropped', label: 'HV Thôi Học', icon: '🚪', on: 'bg-slate-700 text-white border-slate-700' },
 ];
@@ -13,7 +13,7 @@ export default function StudentStatusNav({
   current,
   counts,
 }: {
-  current: Tab;
+  current?: Tab;
   counts: Record<Tab, number>;
 }) {
   return (
