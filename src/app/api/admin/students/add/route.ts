@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth';
+import { assertCodeNotTakenByOther, StudentCodeConflictError } from '@/lib/student-code';
 
 // 1. POST: Tạo mới hoặc khôi phục học viên (Code gốc của anh)
 export async function POST(req: Request) {
@@ -50,16 +51,17 @@ export async function POST(req: Request) {
       });
 
       if (student) {
+        // Cùng mã nhưng KHÁC tên -> từ chối (trước đây bị ghi đè lên hồ sơ cũ làm mất dữ liệu).
+        // Cùng mã và cùng tên -> dùng lại hồ sơ này (đăng ký thêm lớp / khôi phục), giữ nguyên thông tin cũ.
+        await assertCodeNotTakenByOther(tx, student, fullName);
         student = await tx.student.update({
           where: { id: student.id },
           data: {
-            fullName: fullName.trim(),
-            parentPhone: parentPhone?.trim() || null,
-            parentEmail: parentEmail?.trim() || null,
-            note: note?.trim() || null,
             status: 'ACTIVE',
             deletedAt: null,
-            startDate: parsedStartDate,
+            ...(parentPhone?.trim() ? { parentPhone: parentPhone.trim() } : {}),
+            ...(parentEmail?.trim() ? { parentEmail: parentEmail.trim() } : {}),
+            ...(note?.trim() ? { note: note.trim() } : {}),
           },
         });
       } else {
@@ -110,6 +112,9 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
+    if (error instanceof StudentCodeConflictError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     console.error('Add student error:', error);
     return NextResponse.json({ error: error.message || 'Lỗi xử lý hệ thống' }, { status: 500 });
   }

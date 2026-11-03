@@ -12,6 +12,9 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { enrollmentId, status, assignment, evaluation, dueDate, grade, note } = body;
+    // Giờ học thực tế (HH:MM), không hợp lệ thì bỏ qua
+    const startTime: string | null =
+      typeof body.startTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(body.startTime) ? body.startTime : null;
 
     if (!enrollmentId) {
       return NextResponse.json({ error: 'Thiếu thông tin đăng ký lớp học' }, { status: 400 });
@@ -87,9 +90,11 @@ export async function POST(req: Request) {
       },
       update: {
         status: status === 'ATTENDED' ? 'ATTENDED' : 'ABSENT_EXCUSED',
+        ...(startTime ? { startTime } : {}),
       },
       create: {
         status: status === 'ATTENDED' ? 'ATTENDED' : 'ABSENT_EXCUSED',
+        startTime,
         date: today,
         enrollment: { connect: { id: enrollmentId } },
         student: { connect: { id: enrollment.studentId } },

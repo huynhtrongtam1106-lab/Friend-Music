@@ -33,6 +33,12 @@ enum AttendanceStatus {
   ABSENT_UNEXCUSED // Vắng không phép
 }
 
+// Loại lớp dùng để tính tiền dạy cho giáo viên
+enum PayClassType {
+  INDIVIDUAL // Lớp cá nhân
+  GROUP      // Lớp nhóm (đơn giá phụ thuộc số học viên có mặt)
+}
+
 // 2. NGƯỜI DÙNG & PHÂN QUYỀN HỆ THỐNG
 model User {
   id           String   @id @default(uuid())
@@ -61,6 +67,7 @@ model Teacher {
   enrollments     Enrollment[]
   attendances     Attendance[]
   extraEnrollments EnrollmentTeacher[]
+  payRates        TeacherPayRate[]
 
   @@map("teachers")
 }
@@ -162,6 +169,8 @@ model Attendance {
   studentId    String           @map("student_id")
   teacherId    String           @map("teacher_id")
   status       AttendanceStatus @default(ATTENDED)
+  // Giờ học thực tế của buổi này, dạng "19:00" (dùng để gom học viên cùng 1 buổi nhóm)
+  startTime    String?          @map("start_time")
   createdAt    DateTime         @default(now()) @map("created_at")
 
   enrollment   Enrollment       @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
@@ -194,4 +203,23 @@ model SessionLog {
   updatedAt         DateTime   @updatedAt @map("updated_at")
 
   @@map("session_logs")
+}
+
+// ĐƠN GIÁ DẠY CHO GIÁO VIÊN
+// teacherId = null: áp dụng cho mọi giáo viên. subject = null: áp dụng cho mọi môn.
+// classType INDIVIDUAL: groupSize luôn = 0. classType GROUP: groupSize = số học viên có mặt trong buổi.
+model TeacherPayRate {
+  id        String       @id @default(uuid())
+  teacherId String?      @map("teacher_id")
+  subject   String?
+  classType PayClassType @map("class_type")
+  groupSize Int          @default(0) @map("group_size")
+  amount    Decimal      @db.Decimal(12, 0)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  teacher   Teacher?     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([teacherId])
+  @@map("teacher_pay_rates")
 }

@@ -19,6 +19,17 @@ export default function AttendanceClient({
   const [assignment, setAssignment] = useState('');
   const [evaluation, setEvaluation] = useState('Nắm nhịp tốt, bài tập về nhà luyện thêm gam.');
   const [dueDate, setDueDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+
+  // Đoán giờ học mặc định từ lịch cố định, ví dụ "Thứ 2, 4 - 19h" -> 19:00, "18h30" -> 18:30
+  const guessTime = (schedule?: string | null) => {
+    const m = (schedule || '').match(/(\d{1,2})\s*(?:h|giờ|:)\s*(\d{2})?/i);
+    if (!m) return '';
+    const h = Number(m[1]);
+    const min = m[2] ? Number(m[2]) : 0;
+    if (h > 23 || min > 59) return '';
+    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+  };
 
   // Ngày hôm nay theo giờ Việt Nam (YYYY-MM-DD) để so với hạn nộp bài
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
@@ -101,6 +112,7 @@ export default function AttendanceClient({
           enrollmentId, 
           teacherId: teacher?.id,
           status, 
+          startTime,
           assignment, 
           evaluation,
           dueDate,
@@ -120,6 +132,7 @@ export default function AttendanceClient({
         setActiveId(null);
         setAssignment('');
         setDueDate('');
+        setStartTime('');
       } else {
         alert(data.error);
       }
@@ -319,6 +332,19 @@ export default function AttendanceClient({
                   {activeId === item.id ? (
                     <div className="pt-2 border-t border-slate-200 space-y-3">
                       <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Giờ học hôm nay</label>
+                        <input
+                          type="time"
+                          value={startTime}
+                          onChange={(e) => setStartTime(e.target.value)}
+                          className="w-full sm:w-40 text-xs p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Lớp nhóm: các học viên học chung một buổi hãy chọn cùng giờ để hệ thống tính là một buổi dạy.
+                        </p>
+                      </div>
+
+                      <div>
                         <label className="block text-[11px] font-bold text-slate-600 mb-1">Bài tập về nhà</label>
                         <input
                           type="text"
@@ -378,7 +404,10 @@ export default function AttendanceClient({
                     </div>
                   ) : (
                     <button
-                      onClick={() => setActiveId(item.id)}
+                      onClick={() => {
+                        setActiveId(item.id);
+                        setStartTime(guessTime(item.scheduleText));
+                      }}
                       className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl transition cursor-pointer"
                     >
                       Điểm danh & Nhập bài tập về nhà ↗

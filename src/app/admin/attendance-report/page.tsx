@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth';
+import { loadLessons } from '@/lib/payroll-data';
+import { classLabel, formatMoney, formatDateVN, type Lesson } from '@/lib/payroll';
+import LessonTimeEditor from '@/components/lesson-time-editor';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,28 +47,22 @@ export default async function AttendanceReportPage(props: {
     orderBy: { createdAt: 'desc' },
   });
 
-  const attendances = await prisma.attendance.findMany({
-    where: {
-      date: { gte: from, lte: to },
-      ...(teacherFilter ? { teacherId: teacherFilter } : {}),
-    },
-    include: {
-      student: true,
-      teacher: { include: { user: true } },
-      enrollment: { include: { pricingPlan: true } },
-    },
-    orderBy: [{ teacherId: 'asc' }, { date: 'asc' }],
-  });
+  const { lessons } = await loadLessons({ from, to, teacherId: teacherFilter || undefined });
 
-  // Gom nhóm theo giáo viên để dễ tính lương
-  const grouped = new Map<string, { teacherName: string; records: typeof attendances }>();
-  for (const a of attendances) {
-    const key = a.teacherId;
-    if (!grouped.has(key)) {
-      grouped.set(key, { teacherName: a.teacher.user.name, records: [] as any });
-    }
-    grouped.get(key)!.records.push(a);
+  // Gom các buổi dạy theo giáo viên để dễ tính lương
+  const grouped = new Map<string, { teacherName: string; lessons: Lesson[] }>();
+  for (const l of lessons) {
+    if (!grouped.has(l.teacherId)) grouped.set(l.teacherId, { teacherName: l.teacherName, lessons: [] });
+    grouped.get(l.teacherId)!.lessons.push(l);
   }
+
+  const missingRateCount = lessons.filter((l) => l.paid && l.rate === null).length;
+  const grandTotal = lessons.reduce((sum, l) => sum + (l.paid ? l.amount : 0), 0);
+  const exportQuery = new URLSearchParams({
+    from: toDateInputValue(from),
+    to: toDateInputValue(to),
+    ...(teacherFilter ? { teacherId: teacherFilter } : {}),
+  }).toString();
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-6 font-sans text-slate-800">
@@ -73,14 +70,28 @@ export default async function AttendanceReportPage(props: {
         <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-lg sm:text-xl font-black text-slate-900">Báo Cáo Điểm Danh Theo Giáo Viên</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Dùng để đối chiếu và tính lương theo số buổi dạy thực tế</p>
+            <p className="text-xs text-slate-500 mt-0.5">Mỗi dòng là một buổi dạy. Lớp nhóm được gộp theo giờ học, tiền tính theo số học viên có mặt</p>
           </div>
-          <Link
-            href="/admin/dashboard"
-            className="px-3 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition whitespace-nowrap"
-          >
-            ← Quay lại Dashboard
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/admin/pay-rates"
+              className="px-3 py-2 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition whitespace-nowrap"
+            >
+              💰 Cài đặt đơn giá
+            </Link>
+            <a
+              href={`/api/admin/attendance-report/export?${exportQuery}`}
+              className="px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition whitespace-nowrap"
+            >
+              ⬇ Xuất Excel (CSV)
+            </a>
+            <Link
+              href="/admin/dashboard"
+              className="px-3 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition whitespace-nowrap"
+            >
+              ← Quay lại Dashboard
+            </Link>
+          </div>
         </div>
 
         {/* Bộ lọc */}
@@ -124,6 +135,25 @@ export default async function AttendanceReportPage(props: {
           </button>
         </form>
 
+        {missingRateCount > 0 && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-2xl p-4 flex flex-wrap items-center justify-between gap-2">
+            <span>
+              Có <b>{missingRateCount}</b> buổi dạy chưa có đơn giá nên chưa được tính tiền.
+            </span>
+            <Link href="/admin/pay-rates" className="font-bold underline">
+              Cài đặt đơn giá →
+            </Link>
+          </div>
+        )}
+        {grouped.size > 0 && (
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-bold text-slate-500">
+              Tổng cộng {lessons.filter((l) => l.paid).length} buổi dạy tính tiền ({grouped.size} giáo viên)
+            </span>
+            <span className="text-base font-black text-slate-900">{formatMoney(grandTotal)}</span>
+          </div>
+        )}
+
         {/* Bảng kết quả theo từng giáo viên */}
         {grouped.size === 0 ? (
           <div className="bg-white p-10 rounded-2xl border border-slate-200 text-center">
@@ -131,63 +161,107 @@ export default async function AttendanceReportPage(props: {
           </div>
         ) : (
           Array.from(grouped.entries()).map(([teacherId, group]) => {
-            const attendedCount = group.records.filter((r) => r.status === 'ATTENDED').length;
-            const absentExcused = group.records.filter((r) => r.status === 'ABSENT_EXCUSED').length;
-            const absentUnexcused = group.records.filter((r) => r.status === 'ABSENT_UNEXCUSED').length;
+            const paidLessons = group.lessons.filter((l) => l.paid);
+            const total = paidLessons.reduce((sum, l) => sum + l.amount, 0);
+
+            // Thống kê theo loại lớp: cá nhân, nhóm 2 HV, nhóm 3 HV...
+            const byType = new Map<string, { count: number; amount: number; order: number }>();
+            for (const l of paidLessons) {
+              const label = classLabel(l);
+              const cur = byType.get(label) || { count: 0, amount: 0, order: l.classType === 'INDIVIDUAL' ? 0 : l.headcount };
+              cur.count += 1;
+              cur.amount += l.amount;
+              byType.set(label, cur);
+            }
+            const typeStats = Array.from(byType.entries()).sort((a, b) => a[1].order - b[1].order);
 
             return (
               <div key={teacherId} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                  <h2 className="font-bold text-slate-900 text-base">{group.teacherName}</h2>
-                  <div className="flex gap-2 flex-wrap">
-                    <span className="text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full whitespace-nowrap">
-                      {attendedCount} buổi có mặt
-                    </span>
-                    {absentExcused > 0 && (
-                      <span className="text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full whitespace-nowrap">
-                        {absentExcused} vắng có phép
-                      </span>
-                    )}
-                    {absentUnexcused > 0 && (
-                      <span className="text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-1 rounded-full whitespace-nowrap">
-                        {absentUnexcused} vắng không phép
-                      </span>
-                    )}
+                  <div>
+                    <h2 className="font-bold text-slate-900 text-base">{group.teacherName}</h2>
+                    <p className="text-[11px] text-slate-400">{paidLessons.length} buổi dạy tính tiền</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Tổng tiền dạy</p>
+                    <p className="text-lg font-black text-emerald-700">{formatMoney(total)}</p>
                   </div>
                 </div>
 
+                {typeStats.length > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    {typeStats.map(([label, st]) => (
+                      <span
+                        key={label}
+                        className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full whitespace-nowrap"
+                      >
+                        {label}: {st.count} buổi · {formatMoney(st.amount)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                  <table className="w-full min-w-[600px] text-left text-xs">
+                  <table className="w-full min-w-[760px] text-left text-xs">
                     <thead>
                       <tr className="border-b border-slate-200 text-slate-400 uppercase font-semibold">
                         <th className="py-2 whitespace-nowrap">Ngày</th>
-                        <th className="py-2 whitespace-nowrap">Học viên</th>
-                        <th className="py-2 whitespace-nowrap">Môn học</th>
-                        <th className="py-2 whitespace-nowrap">Trạng thái</th>
+                        <th className="py-2 whitespace-nowrap">Giờ</th>
+                        <th className="py-2 whitespace-nowrap">Môn</th>
+                        <th className="py-2 whitespace-nowrap">Loại lớp</th>
+                        <th className="py-2">Học viên</th>
+                        <th className="py-2 whitespace-nowrap text-right">Tiền buổi dạy</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {group.records.map((r) => (
-                        <tr key={r.id}>
-                          <td className="py-2 whitespace-nowrap font-mono">
-                            {new Date(r.date).toLocaleDateString('vi-VN')}
-                          </td>
-                          <td className="py-2 whitespace-nowrap font-bold text-slate-900">
-                            {r.student.fullName} <span className="text-slate-400 font-normal">({r.student.studentCode})</span>
-                          </td>
-                          <td className="py-2 whitespace-nowrap text-slate-600">
-                            {r.enrollment?.pricingPlan?.subject || '—'}
-                          </td>
+                      {group.lessons.map((l) => (
+                        <tr key={l.key} className={l.paid ? '' : 'opacity-60'}>
+                          <td className="py-2 whitespace-nowrap font-mono">{formatDateVN(l.date)}</td>
                           <td className="py-2 whitespace-nowrap">
-                            <span className={`font-bold px-1.5 py-0.5 rounded ${
-                              r.status === 'ATTENDED'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : r.status === 'ABSENT_EXCUSED'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-rose-100 text-rose-800'
-                            }`}>
-                              {STATUS_LABEL[r.status] || r.status}
+                            <LessonTimeEditor
+                              attendanceIds={l.students.map((s) => s.attendanceId)}
+                              startTime={l.startTime}
+                              scheduleHint={l.scheduleHint}
+                            />
+                          </td>
+                          <td className="py-2 whitespace-nowrap text-slate-600">{l.subject}</td>
+                          <td className="py-2 whitespace-nowrap">
+                            <span
+                              className={`font-bold px-1.5 py-0.5 rounded ${
+                                l.classType === 'INDIVIDUAL' ? 'bg-sky-100 text-sky-800' : 'bg-violet-100 text-violet-800'
+                              }`}
+                            >
+                              {l.paid ? classLabel(l) : l.classType === 'INDIVIDUAL' ? 'Cá nhân' : 'Nhóm'}
                             </span>
+                          </td>
+                          <td className="py-2">
+                            <div className="flex flex-col gap-0.5">
+                              {l.students.map((st) => (
+                                <span key={st.attendanceId} className="text-slate-900">
+                                  <b>{st.name}</b> <span className="text-slate-400">({st.code})</span>
+                                  {st.status !== 'ATTENDED' && (
+                                    <span
+                                      className={`ml-1 font-bold px-1.5 py-0.5 rounded ${
+                                        st.status === 'ABSENT_EXCUSED' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                                      }`}
+                                    >
+                                      {STATUS_LABEL[st.status] || st.status}
+                                    </span>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="py-2 whitespace-nowrap text-right font-bold">
+                            {!l.paid ? (
+                              <span className="text-slate-400 font-normal">Không tính</span>
+                            ) : l.rate === null ? (
+                              <Link href="/admin/pay-rates" className="text-amber-600 underline">
+                                Chưa có đơn giá
+                              </Link>
+                            ) : (
+                              formatMoney(l.amount)
+                            )}
                           </td>
                         </tr>
                       ))}
