@@ -5,6 +5,7 @@ import { requireRole } from '@/lib/auth';
 import { loadLessons } from '@/lib/payroll-data';
 import { classLabel, formatMoney, formatDateVN, type Lesson } from '@/lib/payroll';
 import LessonTimeEditor from '@/components/lesson-time-editor';
+import AttendanceEditor from '@/components/attendance-editor';
 
 export const dynamic = 'force-dynamic';
 
@@ -237,18 +238,14 @@ export default async function AttendanceReportPage(props: {
                           <td className="py-2">
                             <div className="flex flex-col gap-0.5">
                               {l.students.map((st) => (
-                                <span key={st.attendanceId} className="text-slate-900">
-                                  <b>{st.name}</b> <span className="text-slate-400">({st.code})</span>
-                                  {st.status !== 'ATTENDED' && (
-                                    <span
-                                      className={`ml-1 font-bold px-1.5 py-0.5 rounded ${
-                                        st.status === 'ABSENT_EXCUSED' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
-                                      }`}
-                                    >
-                                      {STATUS_LABEL[st.status] || st.status}
-                                    </span>
-                                  )}
-                                </span>
+                                <AttendanceEditor
+                                  key={st.attendanceId}
+                                  attendanceId={st.attendanceId}
+                                  name={st.name}
+                                  code={st.code}
+                                  status={st.status}
+                                  date={l.date}
+                                />
                               ))}
                             </div>
                           </td>

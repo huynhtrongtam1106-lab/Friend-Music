@@ -62,22 +62,26 @@ export async function POST(req: Request) {
       },
     });
 
-    if (status === 'ATTENDED') {
-      if (!existingAttendance) {
-        if (enrollment.remainingSessions <= 0) {
-          return NextResponse.json({ error: 'Học viên đã hết số buổi trong gói học!' }, { status: 400 });
-        }
-        newRemaining -= 1;
-        newAttended += 1;
-
-        await prisma.enrollment.update({
-          where: { id: enrollmentId },
-          data: {
-            remainingSessions: newRemaining,
-            attendedSessions: newAttended,
-          },
-        });
+    // Cộng/trừ buổi theo việc đổi trạng thái (kể cả khi giáo viên bấm lại trong cùng ngày)
+    const wasAttended = existingAttendance?.status === 'ATTENDED';
+    if (status === 'ATTENDED' && !wasAttended) {
+      if (enrollment.remainingSessions <= 0) {
+        return NextResponse.json({ error: 'Học viên đã hết số buổi trong gói học!' }, { status: 400 });
       }
+      newRemaining -= 1;
+      newAttended += 1;
+      await prisma.enrollment.update({
+        where: { id: enrollmentId },
+        data: { remainingSessions: newRemaining, attendedSessions: newAttended },
+      });
+    } else if (status !== 'ATTENDED' && wasAttended) {
+      // Điểm danh nhầm "Có mặt" rồi đổi sang vắng -> hoàn lại 1 buổi
+      newRemaining += 1;
+      newAttended = Math.max(0, newAttended - 1);
+      await prisma.enrollment.update({
+        where: { id: enrollmentId },
+        data: { remainingSessions: newRemaining, attendedSessions: newAttended },
+      });
     }
 
     // Upsert Attendance (Không chứa trường homework)
