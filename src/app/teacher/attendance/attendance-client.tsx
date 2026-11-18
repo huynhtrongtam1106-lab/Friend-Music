@@ -14,6 +14,16 @@ export default function AttendanceClient({
 }) {
   const [list, setList] = useState(initialEnrollments);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Tìm kiếm / lọc / thu gọn danh sách học viên
+  const [search, setSearch] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  const [showAllLogsIds, setShowAllLogsIds] = useState<string[]>([]);
+  const toggleId = (arr: string[], setArr: (v: string[]) => void, id: string) =>
+    setArr(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
+  const norm = (t: string) =>
+    (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase().trim();
   
   // State quản lý thông tin nhập liệu điểm danh
   const [assignment, setAssignment] = useState('');
@@ -141,6 +151,15 @@ export default function AttendanceClient({
     }
   };
 
+  const subjects = Array.from(new Set(list.map((it: any) => it.pricingPlan.subject))) as string[];
+  const filteredList = list.filter((it: any) => {
+    if (subjectFilter && it.pricingPlan.subject !== subjectFilter) return false;
+    const q = norm(search);
+    if (!q) return true;
+    return norm(it.student.fullName).includes(q) || norm(it.student.studentCode).includes(q);
+  });
+  const allExpanded = filteredList.length > 0 && filteredList.every((it: any) => expandedIds.includes(it.id));
+
   return (
     <main className="min-h-screen bg-slate-50 p-6 font-sans text-slate-800">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -179,6 +198,57 @@ export default function AttendanceClient({
             </span>
           </div>
 
+          {list.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Tìm học viên theo tên hoặc mã..."
+                  className="flex-1 min-w-[200px] text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setExpandedIds(allExpanded ? [] : filteredList.map((it: any) => it.id))}
+                  className="px-3 py-2 text-[11px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl whitespace-nowrap"
+                >
+                  {allExpanded ? 'Thu gọn tất cả' : 'Mở rộng tất cả'}
+                </button>
+              </div>
+              {subjects.length > 1 && (
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setSubjectFilter('')}
+                    className={`px-2.5 py-1 text-[11px] font-bold rounded-full border ${
+                      !subjectFilter ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    Tất cả môn
+                  </button>
+                  {subjects.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSubjectFilter(subjectFilter === s ? '' : s)}
+                      className={`px-2.5 py-1 text-[11px] font-bold rounded-full border ${
+                        subjectFilter === s ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {(search || subjectFilter) && (
+                <p className="text-[11px] text-slate-500">
+                  Tìm thấy <b>{filteredList.length}</b> / {list.length} học viên
+                </p>
+              )}
+            </div>
+          )}
+
           {list.length === 0 ? (
             <div className="text-center py-10 space-y-2">
               <p className="text-sm font-bold text-slate-700">Chưa có học viên nào được phân công</p>
@@ -186,7 +256,17 @@ export default function AttendanceClient({
             </div>
           ) : (
             <div className="space-y-3">
-              {list.map((item) => (
+              {filteredList.length === 0 && (
+                <p className="text-center text-xs text-slate-400 py-6">Không có học viên nào khớp tìm kiếm.</p>
+              )}
+              {filteredList.map((item: any) => {
+                const logs = (item.student.sessionLogs || []).filter((l: any) => l.assignment);
+                const isEditingHere = logs.some((l: any) => l.id === editLogId);
+                const isOpen = expandedIds.includes(item.id) || activeId === item.id || isEditingHere;
+                const showAll = showAllLogsIds.includes(item.id);
+                const visibleLogs = showAll ? logs : logs.slice(0, 2);
+                const latest = logs[0];
+                return (
                 <div key={item.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                   <div className="flex justify-between items-start">
                     <div>
@@ -200,6 +280,16 @@ export default function AttendanceClient({
                         [{item.pricingPlan.subject}] {item.pricingPlan.packageName}
                       </p>
                     </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                    {expandedIds.includes(item.id) && activeId !== item.id && !isEditingHere && (
+                      <button
+                        type="button"
+                        onClick={() => toggleId(expandedIds, setExpandedIds, item.id)}
+                        className="text-[11px] font-bold text-slate-500 hover:text-slate-800"
+                      >
+                        Thu gọn ▴
+                      </button>
+                    )}
                     <span
                       className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                         item.remainingSessions <= 1
@@ -209,7 +299,56 @@ export default function AttendanceClient({
                     >
                       Còn {item.remainingSessions} buổi
                     </span>
+                    </div>
                   </div>
+
+                  {/* Dạng thu gọn: chỉ hiện bài tập gần nhất + nút Điểm danh nhanh */}
+                  {!isOpen && (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1 flex items-center gap-2 text-[11px] text-slate-500">
+                        {latest ? (
+                          <>
+                            <span
+                              className={`shrink-0 font-bold px-1.5 py-0.5 rounded ${
+                                displayStatus(latest) === 'Đã xong'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : displayStatus(latest) === 'Trễ hạn'
+                                  ? 'bg-rose-100 text-rose-700'
+                                  : 'bg-amber-100 text-amber-700'
+                              }`}
+                            >
+                              {displayStatus(latest)}
+                            </span>
+                            <span className="truncate">{latest.assignment}</span>
+                          </>
+                        ) : (
+                          <span>Chưa có bài tập</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveId(item.id);
+                            setStartTime(guessTime(item.scheduleText));
+                          }}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] rounded-lg"
+                        >
+                          Điểm danh
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleId(expandedIds, setExpandedIds, item.id)}
+                          className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 font-bold text-[11px] rounded-lg"
+                        >
+                          Chi tiết ▾{logs.length > 0 ? ` (${logs.length})` : ''}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {isOpen && (
+                  <>
 
                   {/* Bảng thông tin chi tiết: Trạng thái, Thời gian (Đã học), Ngày bắt đầu, Ngày đến hạn */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-2 px-3 bg-white rounded-xl border border-slate-200 text-[11px]">
@@ -234,10 +373,10 @@ export default function AttendanceClient({
                   </div>
 
                   {/* Bài tập đã giao: sửa trạng thái / chấm điểm */}
-                  {(item.student.sessionLogs || []).filter((l: any) => l.assignment).length > 0 && (
+                  {logs.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-[11px] font-bold text-slate-600">Bài tập đã giao</p>
-                      {(item.student.sessionLogs || []).filter((l: any) => l.assignment).map((log: any) => (
+                      <p className="text-[11px] font-bold text-slate-600">Bài tập đã giao ({logs.length})</p>
+                      {visibleLogs.map((log: any) => (
                         <div key={log.id} className="bg-white border border-slate-200 rounded-xl p-3 text-[11px] space-y-2">
                           {editLogId === log.id ? (
                             <>
@@ -326,6 +465,15 @@ export default function AttendanceClient({
                           )}
                         </div>
                       ))}
+                      {logs.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => toggleId(showAllLogsIds, setShowAllLogsIds, item.id)}
+                          className="w-full py-1.5 text-[11px] font-bold text-slate-500 hover:text-slate-800 bg-white border border-dashed border-slate-300 rounded-xl"
+                        >
+                          {showAll ? 'Ẩn bớt bài tập cũ ▴' : `Xem thêm ${logs.length - 2} bài tập cũ ▾`}
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -413,8 +561,11 @@ export default function AttendanceClient({
                       Điểm danh & Nhập bài tập về nhà ↗
                     </button>
                   )}
+                  </>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
